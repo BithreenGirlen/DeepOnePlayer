@@ -96,16 +96,17 @@ CScenePlayer::~CScenePlayer()
 	}
 
 }
-/*フォルダ設定*/
-bool CScenePlayer::SetFolder(const wchar_t* pzFolderPath, const wchar_t* pwzFileExtension)
+/*ファイル設定*/
+bool CScenePlayer::SetFiles(const std::vector<std::wstring>& filePaths)
 {
-	if (pzFolderPath == nullptr || m_hRetWnd == nullptr)return false;
-	m_wstrFolder = std::wstring(pzFolderPath).append(L"\\/");
-
-	bool bRet = FindImages(pwzFileExtension);
+	Clear();
+	for (const std::wstring& filePath : filePaths)
+	{
+		LoadImageToMemory(filePath.c_str());
+	}
 	ResetScale();
 
-	return bRet;
+	return m_image_info.size() > 0;
 }
 /*描画*/
 bool CScenePlayer::DisplayImage()
@@ -198,29 +199,6 @@ void CScenePlayer::Clear()
 {
 	m_image_info.clear();
 	m_nIndex = 0;
-}
-/*画像ファイル探索*/
-bool CScenePlayer::FindImages(const wchar_t* pwzFileExtension)
-{
-	Clear();
-
-	WIN32_FIND_DATAW find_file_data;
-	std::wstring wstrFile = m_wstrFolder + L"*" + pwzFileExtension;
-	HANDLE hFind = ::FindFirstFileW(wstrFile.c_str(), &find_file_data);
-	if (hFind != INVALID_HANDLE_VALUE)
-	{
-		do
-		{
-			if (!(find_file_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
-			{
-				std::wstring wstr = m_wstrFolder + find_file_data.cFileName;
-				LoadImageToMemory(wstr.c_str());
-			}
-		} while (::FindNextFileW(hFind, &find_file_data));
-		::FindClose(hFind);
-	}
-
-	return m_image_info.size() > 0;
 }
 /*画像ファイル取り込み*/
 bool CScenePlayer::LoadImageToMemory(const wchar_t* pzFilePath)

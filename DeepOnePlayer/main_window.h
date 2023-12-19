@@ -74,6 +74,7 @@ private:
 
 	bool CreateFolderList(const wchar_t* pwzFolderPath);
 	void SetPlayerFolder(const wchar_t* pwzFolderPath);
+	void FindAudioFileNames(const wchar_t* pwzFilePath, std::vector<std::wstring> &names);
 
 	CScenePlayer* m_pScenePlayer = nullptr;
 	CMediaPlayer* m_pVideoPlayer = nullptr;

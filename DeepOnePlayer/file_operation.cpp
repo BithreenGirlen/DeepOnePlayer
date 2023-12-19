@@ -1,10 +1,20 @@
 
+#include <shobjidl.h>
+#include <atlbase.h>
+
 #include "file_operation.h"
 
-/*フォルダ選択ダイアログ*/
-wchar_t* SelectWorkingFolder()
+struct ComInit
 {
-	ComInit init;
+	HRESULT m_hrComInit;
+	ComInit() : m_hrComInit(::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE)) {}
+	~ComInit() { if (SUCCEEDED(m_hrComInit)) ::CoUninitialize(); }
+};
+
+/*フォルダ選択ダイアログ*/
+wchar_t* SelectWorkingFolder(HWND hParentWnd)
+{
+	ComInit sInit;
 	CComPtr<IFileOpenDialog> pFolderDlg;
 	HRESULT hr = pFolderDlg.CoCreateInstance(CLSID_FileOpenDialog);
 
@@ -13,7 +23,7 @@ wchar_t* SelectWorkingFolder()
 		pFolderDlg->GetOptions(&opt);
 		pFolderDlg->SetOptions(opt | FOS_PICKFOLDERS | FOS_PATHMUSTEXIST | FOS_FORCEFILESYSTEM);
 
-		if (SUCCEEDED(pFolderDlg->Show(nullptr)))
+		if (SUCCEEDED(pFolderDlg->Show(hParentWnd)))
 		{
 			CComPtr<IShellItem> pSelectedItem;
 			pFolderDlg->GetResult(&pSelectedItem);

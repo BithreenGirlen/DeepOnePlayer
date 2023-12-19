@@ -127,6 +127,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="file_system_utility.h" />
     <ClInclude Include="media_setting_dialogue.h" />
     <ClInclude Include="DeepOnePlayer.h" />
     <ClInclude Include="file_operation.h" />
@@ -138,6 +139,7 @@
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="file_system_utility.cpp" />
     <ClCompile Include="media_setting_dialogue.cpp" />
     <ClCompile Include="DeepOnePlayer.cpp" />
     <ClCompile Include="file_operation.cpp" />

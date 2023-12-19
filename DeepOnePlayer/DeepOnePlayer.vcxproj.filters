@@ -42,6 +42,9 @@
     <ClInclude Include="scene_player.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="file_system_utility.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DeepOnePlayer.cpp">
@@ -60,6 +63,9 @@
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="scene_player.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="file_system_utility.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>

@@ -52,7 +52,7 @@ class CMediaPlayer
 public:
 	CMediaPlayer(HWND hWnd);
 	~CMediaPlayer();
-    bool SetFolder(const wchar_t* pwzFolderPath, const wchar_t* pwzFileExtension);
+    bool SetFiles(const std::vector<std::wstring>& filePaths);
     bool Play();
     void Next();
     void Back();
@@ -70,7 +70,7 @@ public:
     void UpScale();
     void DownScale();
 private:
-    std::wstring m_wstrFolder;
+
     HWND m_hRetWnd = nullptr;
 
     std::mutex m_mutex;
@@ -90,7 +90,6 @@ private:
     bool m_bBarHidden = false;
 
     void Clear();
-    bool FindMediaFiles(const wchar_t* pwzFileExtension);
     void ResizeBuffer();
 
     BOOL m_iLoop = FALSE;
