@@ -858,25 +858,12 @@ void CMainWindow::FindAudioFileNames(const wchar_t* pwzFilePath, std::vector<std
     std::wstring wstrText = LoadFileAsString(pwzFilePath);
 
     const wchar_t key[] = L"playvoice,1,";
+    size_t nKeyLen = wcslen(key);
 
     size_t nRead = 0;
     size_t nPos = 0;
 
     std::vector<std::wstring> audioFilePaths;
-
-    /*substrが非効率だが<string_view>は使いたくないのでwcsstrを使う。*/
-    //for (;;)
-    //{
-    //    nPos = wstrText.substr(nRead).find(key);
-    //    if (nPos == std::wstring::npos)break;
-
-    //    nRead += nPos + sizeof(key)/sizeof(wchar_t) -1;
-    //    nPos = wstrText.substr(nRead).find_first_of(L",\r\n");
-    //    if (nPos == std::wstring::npos)break;
-
-    //    audioFilePaths.push_back(wstrText.substr(nRead, nPos));
-    //    nRead += nPos;
-    //}
 
     auto FindFirstSeparation = [](wchar_t* src)
         ->wchar_t*
@@ -896,12 +883,12 @@ void CMainWindow::FindAudioFileNames(const wchar_t* pwzFilePath, std::vector<std
     {
         wchar_t* p = wcsstr(&wstrText[nRead], key);
         if (p == nullptr)break;
-        p += sizeof(key)/sizeof(wchar_t) - 1;
+
+        nRead += p - &wstrText[nRead] + nKeyLen;
+        p = FindFirstSeparation(&wstrText[nRead]);
+        if (p == nullptr)break;
+
         size_t nLen = p - &wstrText[nRead];
-        nRead += nLen;
-        wchar_t* pp = FindFirstSeparation(p);
-        if (pp == nullptr)break;
-        nLen = pp - p;
         audioFilePaths.push_back(wstrText.substr(nRead, nLen));
         nRead += nLen;
     }
