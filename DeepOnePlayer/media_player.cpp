@@ -114,13 +114,11 @@ CMediaPlayer::~CMediaPlayer()
 		::CoUninitialize();
 	}
 }
-/*フォルダ設定*/
-bool CMediaPlayer::SetFolder(const wchar_t* pwzFolderPath, const wchar_t* pwzFileExtension)
+/*ファイル設定*/
+bool CMediaPlayer::SetFiles(const std::vector<std::wstring>& filePaths)
 {
-	if (pwzFolderPath == nullptr || pwzFileExtension == nullptr)return false;
-	m_wstrFolder = std::wstring(pwzFolderPath).append(L"\\/");
-
-	FindMediaFiles(pwzFileExtension);
+	Clear();
+	m_media_files = filePaths;
 	ResetZoom();
 
 	return Play();
@@ -312,29 +310,6 @@ void CMediaPlayer::Clear()
 {
 	m_media_files.clear();
 	m_nIndex = 0;
-}
-/*音声ファイル探索*/
-bool CMediaPlayer::FindMediaFiles(const wchar_t* pwzFileExtension)
-{
-	Clear();
-
-	WIN32_FIND_DATAW find_file_data;
-	std::wstring wstrFile = m_wstrFolder + L"*" + pwzFileExtension;
-	HANDLE hFind = ::FindFirstFileW(wstrFile.c_str(), &find_file_data);
-	if (hFind != INVALID_HANDLE_VALUE)
-	{
-		do
-		{
-			if (!(find_file_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
-			{
-				std::wstring wstr = m_wstrFolder + find_file_data.cFileName;
-				m_media_files.push_back(wstr);
-			}
-		} while (::FindNextFileW(hFind, &find_file_data));
-		::FindClose(hFind);
-	}
-
-	return m_media_files.size() > 0;
 }
 /*原版寸法変更*/
 void CMediaPlayer::ResizeBuffer()

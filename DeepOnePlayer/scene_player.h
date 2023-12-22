@@ -24,7 +24,7 @@ public:
     CScenePlayer(HWND hWnd);
     ~CScenePlayer();
 
-    bool SetFolder(const wchar_t* pwzFolderPath, const wchar_t* pwzFileExtension);
+    bool SetFiles(const std::vector<std::wstring>& filePaths);
     bool DisplayImage();
     void Next();
     void UpScale();
@@ -33,8 +33,6 @@ public:
     void SwitchSizeLore(bool bBarHidden);
     void SetOffset(int iX, int iY);
 private:
-
-    std::wstring m_wstrFolder;
     HWND m_hRetWnd = nullptr;
 
     HRESULT m_hrComInit = E_FAIL;
@@ -53,7 +51,6 @@ private:
     bool m_bBarHidden = false;
 
     void Clear();
-    bool FindImages(const wchar_t* pwzFileExtension);
     bool LoadImageToMemory(const wchar_t* pwzFilePath);
     void Update();
     void ResizeWindow();
