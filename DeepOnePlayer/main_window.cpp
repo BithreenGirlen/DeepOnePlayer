@@ -7,7 +7,9 @@
 #include "win_filesystem.h"
 #include "win_dialogue.h"
 #include "win_text.h"
+#include "win_image.h"
 #include "media_setting_dialogue.h"
+#include "tnfr.h"
 #include "Resource.h"
 
 #pragma comment(lib, "Comctl32.lib")
@@ -62,7 +64,7 @@ bool CMainWindow::Create(HINSTANCE hInstance)
         ::MessageBoxW(nullptr, wstrMessage.c_str(), L"Error", MB_ICONERROR);
     }
 
-	return false;
+    return false;
 }
 
 int CMainWindow::MessageLoop()
@@ -125,9 +127,13 @@ LRESULT CMainWindow::HandleMessage(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
     case WM_PAINT:
         return OnPaint();
     case WM_ERASEBKGND:
-        return m_bHasVideo ? ::DefWindowProcW(hWnd, uMsg, wParam, lParam) : 0;
+        return 1;
+    case WM_KEYUP:
+        return OnKeyUp(wParam, lParam);
     case WM_COMMAND:
         return OnCommand(wParam, lParam);
+    case WM_TIMER:
+        return OnTimer(wParam);
     case WM_MOUSEWHEEL:
         return OnMouseWheel(wParam, lParam);
     case WM_LBUTTONDOWN:
@@ -136,6 +142,15 @@ LRESULT CMainWindow::HandleMessage(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
         return OnLButtonUp(wParam, lParam);
     case WM_MBUTTONUP:
         return OnMButtonUp(wParam, lParam);
+    case EventMessage::kAudioPlayer:
+        OnAudioPlayerEvent(static_cast<unsigned long>(lParam));
+        break;
+    case EventMessage::kVideoPlayer:
+        OnVideoPlayerEvent(static_cast<unsigned long>(lParam));
+        break;
+    default:
+
+        break;
     }
 
     return ::DefWindowProcW(hWnd, uMsg, wParam, lParam);
@@ -147,6 +162,22 @@ LRESULT CMainWindow::OnCreate(HWND hWnd)
 
     InitialiseMenuBar();
 
+    SetupDrawingInterval();
+
+    m_pD2ImageDrawer = new CD2ImageDrawer(m_hWnd);
+
+    m_pAudioPlayer = new CMfMediaPlayer();
+    m_pAudioPlayer->SetPlaybackWindow(m_hWnd, EventMessage::kAudioPlayer);
+
+    m_pVideoTransferor = new CMfVideoTransferor();
+    m_pVideoTransferor->SetPlaybackWindow(m_hWnd, EventMessage::kVideoPlayer);
+    m_pVideoTransferor->SwitchLoop();
+
+    m_pD2TextWriter = new CD2TextWriter(m_pD2ImageDrawer->GetD2Factory(), m_pD2ImageDrawer->GetD2DeviceContext());
+    m_pD2TextWriter->SetupOutLinedDrawing(L"C:\\Windows\\Fonts\\yumindb.ttf");
+
+    m_pViewManager = new CViewManager(m_hWnd);
+
     return 0;
 }
 /*WM_DESTROY*/
@@ -154,16 +185,25 @@ LRESULT CMainWindow::OnDestroy()
 {
     ::PostQuitMessage(0);
 
-    if (m_pScenePlayer != nullptr)
+    return 0;
+}
+/*WM_CLOSE*/
+LRESULT CMainWindow::OnClose()
+{
+    EndThreadpoolTimer();
+
+    ::KillTimer(m_hWnd, Timer::kText);
+
+    if (m_pD2TextWriter != nullptr)
     {
-        delete m_pScenePlayer;
-        m_pScenePlayer = nullptr;
+        delete m_pD2TextWriter;
+        m_pD2TextWriter = nullptr;
     }
 
-    if (m_pVideoPlayer != nullptr)
+    if (m_pD2ImageDrawer != nullptr)
     {
-        delete m_pVideoPlayer;
-        m_pVideoPlayer = nullptr;
+        delete m_pD2ImageDrawer;
+        m_pD2ImageDrawer = nullptr;
     }
 
     if (m_pAudioPlayer != nullptr)
@@ -172,11 +212,12 @@ LRESULT CMainWindow::OnDestroy()
         m_pAudioPlayer = nullptr;
     }
 
-    return 0;
-}
-/*WM_CLOSE*/
-LRESULT CMainWindow::OnClose()
-{
+    if (m_pVideoTransferor != nullptr)
+    {
+        delete m_pVideoTransferor;
+        m_pVideoTransferor = nullptr;
+    }
+
     ::DestroyWindow(m_hWnd);
     ::UnregisterClassW(m_class_name.c_str(), m_hInstance);
 
@@ -188,9 +229,63 @@ LRESULT CMainWindow::OnPaint()
     PAINTSTRUCT ps;
     HDC hdc = ::BeginPaint(m_hWnd, &ps);
 
-    if (m_pScenePlayer != nullptr && !m_bHasVideo)
+    if (m_pD2ImageDrawer != nullptr)
     {
-        m_pScenePlayer->DisplayImage();
+        bool bRet = false;
+
+        if (m_bHasVideo)
+        {
+            CMfVideoTransferor::SVideoFrame sVideoFrame{};
+            bRet = m_pVideoTransferor->TransferVideoFrame(&sVideoFrame);
+            if (bRet && sVideoFrame.pPixels != nullptr)
+            {
+                if (m_pViewManager != nullptr)
+                {
+                    ImageInfo sImageInfo;
+                    sImageInfo.uiWidth = sVideoFrame.iWidth;
+                    sImageInfo.uiHeight = sVideoFrame.iHeight;
+                    sImageInfo.iStride = sVideoFrame.uiStride;
+                    sImageInfo.pixels.resize(sVideoFrame.nPixelSize);
+                    memcpy(sImageInfo.pixels.data(), sVideoFrame.pPixels, sVideoFrame.nPixelSize);
+
+                    bRet = m_pD2ImageDrawer->Draw(sImageInfo, { static_cast<float>(m_pViewManager->GetXOffset()), static_cast<float>(m_pViewManager->GetYOffset()) }, m_pViewManager->GetScale());
+
+                    if (bRet)
+                    {
+                        StoreVideoFrame(sVideoFrame.llCurrentTime, sImageInfo);
+                    }
+                }
+                free(sVideoFrame.pPixels);
+            }
+            else
+            {
+                long long llCurrentTime = m_pVideoTransferor->GetCurrentTimeInMilliSeconds();
+                ImageInfo* s = ReStoreVideoFrame(llCurrentTime);
+                if (s != nullptr)
+                {
+                    bRet = m_pD2ImageDrawer->Draw(*s, { static_cast<float>(m_pViewManager->GetXOffset()), static_cast<float>(m_pViewManager->GetYOffset()) }, m_pViewManager->GetScale());
+                }
+            }
+        }
+        else
+        {
+            /*静画*/
+            if (m_pViewManager != nullptr && m_nImageIndex < m_imageInfo.size())
+            {
+                ImageInfo &s = m_imageInfo.at(m_nImageIndex);
+                bRet = m_pD2ImageDrawer->Draw(s, { static_cast<float>(m_pViewManager->GetXOffset()), static_cast<float>(m_pViewManager->GetYOffset()) }, m_pViewManager->GetScale());
+            }
+        }
+
+        if (bRet)
+        {
+            if (!m_bTextHidden && m_pD2TextWriter != nullptr)
+            {
+                const std::wstring wstr = FormatCurrentText();
+                m_pD2TextWriter->OutLinedDraw(wstr.c_str(), static_cast<unsigned long>(wstr.size()));
+            }
+            m_pD2ImageDrawer->Display();
+        }
     }
 
     ::EndPaint(m_hWnd, &ps);
@@ -201,6 +296,34 @@ LRESULT CMainWindow::OnPaint()
 LRESULT CMainWindow::OnSize()
 {
 
+    return 0;
+}
+/*WM_KEYUP*/
+LRESULT CMainWindow::OnKeyUp(WPARAM wParam, LPARAM lParam)
+{
+    switch (wParam)
+    {
+    case VK_ESCAPE:
+        ::PostMessage(m_hWnd, WM_CLOSE, 0, 0);
+        break;
+    case VK_UP:
+        MenuOnForeFolder();
+        break;
+    case VK_DOWN:
+        MenuOnNextFolder();
+        break;
+    case 'C':
+        if (m_pD2TextWriter != nullptr)
+        {
+            m_pD2TextWriter->SwitchTextColour();
+            UpdateScreen();
+        }
+        break;
+    case 'T':
+        m_bTextHidden ^= true;
+        UpdateScreen();
+        break;
+    }
     return 0;
 }
 /*WM_COMMAND*/
@@ -222,35 +345,17 @@ LRESULT CMainWindow::OnCommand(WPARAM wParam, LPARAM lParam)
         case Menu::kForeFolder:
             MenuOnForeFolder();
             break;
-        case Menu::kNextAudio:
-            MenuOnNextAudio();
-            break;
-        case Menu::kForeAudio:
-            MenuOnForeAudio();
-            break;
-        case Menu::kPlayAudio:
-            MenuOnPlayAudio();
-            break;
         case Menu::kAudioLoop:
             MenuOnAudioLoop();
             break;
         case Menu::kAudioSetting:
-            MenuOnAudioVolume();
+            MenuOnAudioSetting();
             break;
-        case Menu::kNextVideo:
-            MenuOnNextVideo();
-            break;
-        case Menu::kForeVideo:
-            MenuOnForeVideo();
-            break;
-        case Menu::kPlayVideo:
-            MenuOnPlayVideo();
-            break;
-        case Menu::kVideoLoop:
-            MenuOnVideoLoop();
+        case Menu::kVideoPause:
+            MenuOnVideoPause();
             break;
         case Menu::kVideoSetting:
-            MenuOnVideoVolume();
+            MenuOnVideoSetting();
             break;
         default:
 
@@ -264,6 +369,25 @@ LRESULT CMainWindow::OnCommand(WPARAM wParam, LPARAM lParam)
 
     return 0;
 }
+/*WM_TIMER*/
+LRESULT CMainWindow::OnTimer(WPARAM wParam)
+{
+    switch (wParam)
+    {
+    case Timer::kText:
+        if (m_pAudioPlayer != nullptr)
+        {
+            if (m_pAudioPlayer->IsEnded())
+            {
+                AutoTexting();
+            }
+        }
+        break;
+    default:
+        break;
+    }
+    return 0;
+}
 /*WM_MOUSEWHEEL*/
 LRESULT CMainWindow::OnMouseWheel(WPARAM wParam, LPARAM lParam)
 {
@@ -272,42 +396,20 @@ LRESULT CMainWindow::OnMouseWheel(WPARAM wParam, LPARAM lParam)
 
     if (wKey == 0)
     {
-        if (m_pScenePlayer != nullptr && !m_bHasVideo)
+        if (m_pViewManager != nullptr)
         {
-            if (iScroll > 0)
-            {
-                m_pScenePlayer->UpScale();
-            }
-            else
-            {
-                m_pScenePlayer->DownScale();
-            }
+            m_pViewManager->Rescale(iScroll > 0);
         }
+    }
 
-        if (m_pVideoPlayer != nullptr && m_bHasVideo)
-        {
-            if (iScroll > 0)
-            {
-                m_pVideoPlayer->UpScale();
-            }
-            else
-            {
-                m_pVideoPlayer->DownScale();
-            }
-        }
+    if (wKey == MK_LBUTTON)
+    {
 
     }
 
-    if (wKey == MK_RBUTTON && m_pAudioPlayer != nullptr)
+    if (wKey == MK_RBUTTON)
     {
-        if (iScroll > 0)
-        {
-            m_pAudioPlayer->Next();
-        }
-        else
-        {
-            m_pAudioPlayer->Back();
-        }
+        ShiftText(iScroll > 0);
     }
 
     return 0;
@@ -316,6 +418,9 @@ LRESULT CMainWindow::OnMouseWheel(WPARAM wParam, LPARAM lParam)
 LRESULT CMainWindow::OnLButtonDown(WPARAM wParam, LPARAM lParam)
 {
     ::GetCursorPos(&m_CursorPos);
+
+    /*When menu item is selected, WM_LBUTTONDOWN does not happen, but does WM_LBUTTONUP.*/
+    m_bLeftDowned = true;
 
     return 0;
 }
@@ -333,49 +438,27 @@ LRESULT CMainWindow::OnLButtonUp(WPARAM wParam, LPARAM lParam)
         ::SendInput(1, &input, sizeof(input));
     }
 
-    if (usKey == 0)
+    if (usKey == 0 && m_bLeftDowned)
     {
         POINT pt{};
         ::GetCursorPos(&pt);
         int iX = m_CursorPos.x - pt.x;
         int iY = m_CursorPos.y - pt.y;
 
-        if (m_pScenePlayer != nullptr)
+        if (iX == 0 && iY == 0)
         {
-
-            if (iX == 0 && iY == 0)
+            ShiftImage(true);
+        }
+        {
+            if (m_pViewManager != nullptr)
             {
-                m_pScenePlayer->Next();
-            }
-            else
-            {
-                m_pScenePlayer->SetOffset(iX, iY);
+                m_pViewManager->SetOffset(iX, iY);
             }
         }
-
-        if (m_pVideoPlayer != nullptr && m_bHasVideo)
-        {
-            if (iX == 0 && iY == 0)
-            {
-                m_pVideoPlayer->Next();
-            }
-            else
-            {
-                ::ScreenToClient(m_hWnd, &pt);
-                ::ScreenToClient(m_hWnd, &m_CursorPos);
-
-                RECT rc{};
-                rc.left = m_CursorPos.x > pt.x ? pt.x : m_CursorPos.x;
-                rc.right = m_CursorPos.x > pt.x ? m_CursorPos.x : pt.x;
-                rc.top = m_CursorPos.y > pt.y ? pt.y : m_CursorPos.y;
-                rc.bottom = m_CursorPos.y > pt.y ? m_CursorPos.y : pt.y;
-
-                m_pVideoPlayer->SetDisplayArea(&rc);
-            }
-
-        }
-
     }
+
+    m_bLeftDowned = false;
+
     return 0;
 }
 /*WM_MBUTTONUP*/
@@ -384,16 +467,10 @@ LRESULT CMainWindow::OnMButtonUp(WPARAM wParam, LPARAM lParam)
     WORD usKey = LOWORD(wParam);
     if (usKey == 0)
     {
-        if (m_pScenePlayer != nullptr && !m_bHasVideo)
+        if (m_pViewManager != nullptr)
         {
-            m_pScenePlayer->ResetScale();
+            m_pViewManager->ResetZoom();
         }
-
-        if (m_pVideoPlayer != nullptr && m_bHasVideo)
-        {
-            m_pVideoPlayer->ResetZoom();
-        }
-
     }
 
     if (usKey == MK_RBUTTON)
@@ -406,7 +483,7 @@ LRESULT CMainWindow::OnMButtonUp(WPARAM wParam, LPARAM lParam)
 /*操作欄作成*/
 void CMainWindow::InitialiseMenuBar()
 {
-    HMENU hManuFolder = nullptr;
+    HMENU hMenuFolder = nullptr;
     HMENU hMenuAudio = nullptr;
     HMENU hMenuVideo = nullptr;
     HMENU hMenuBar = nullptr;
@@ -415,24 +492,19 @@ void CMainWindow::InitialiseMenuBar()
     if (m_hMenuBar != nullptr)return;
 
     /*フォルダ*/
-    hManuFolder = ::CreateMenu();
-    if (hManuFolder == nullptr)goto failed;
-    iRet = ::AppendMenuA(hManuFolder, MF_STRING, Menu::kOpenFolder, "Open");
+    hMenuFolder = ::CreateMenu();
+    if (hMenuFolder == nullptr)goto failed;
+    iRet = ::AppendMenuA(hMenuFolder, MF_STRING, Menu::kOpenFolder, "Open");
     if (iRet == 0)goto failed;
-    iRet = ::AppendMenuA(hManuFolder, MF_STRING, Menu::kNextFolder, "Next");
+    iRet = ::AppendMenuA(hMenuFolder, MF_STRING, Menu::kNextFolder, "Next");
     if (iRet == 0)goto failed;
-    iRet = ::AppendMenuA(hManuFolder, MF_STRING, Menu::kForeFolder, "Back");
+    iRet = ::AppendMenuA(hMenuFolder, MF_STRING, Menu::kForeFolder, "Back");
     if (iRet == 0)goto failed;
 
     /*音声*/
     hMenuAudio = ::CreateMenu();
     if (hMenuAudio == nullptr)goto failed;
-    iRet = ::AppendMenuA(hMenuAudio, MF_STRING, Menu::kNextAudio, "Next");
-    if (iRet == 0)goto failed;
-    iRet = ::AppendMenuA(hMenuAudio, MF_STRING, Menu::kForeAudio, "Back");
-    if (iRet == 0)goto failed;
-    iRet = ::AppendMenuA(hMenuAudio, MF_STRING, Menu::kPlayAudio, "Play");
-    if (iRet == 0)goto failed;
+
     iRet = ::AppendMenuA(hMenuAudio, MF_STRING, Menu::kAudioLoop, "Loop");
     if (iRet == 0)goto failed;
     iRet = ::AppendMenuA(hMenuAudio, MF_STRING, Menu::kAudioSetting, "Setting");
@@ -441,21 +513,16 @@ void CMainWindow::InitialiseMenuBar()
     /*動画*/
     hMenuVideo = ::CreateMenu();
     if (hMenuVideo == nullptr)goto failed;
-    iRet = ::AppendMenuA(hMenuVideo, MF_STRING, Menu::kNextVideo, "Next");
-    if (iRet == 0)goto failed;
-    iRet = ::AppendMenuA(hMenuVideo, MF_STRING, Menu::kForeVideo, "Back");
-    if (iRet == 0)goto failed;
-    iRet = ::AppendMenuA(hMenuVideo, MF_STRING, Menu::kPlayVideo, "Play");
-    if (iRet == 0)goto failed;
-    iRet = ::AppendMenuA(hMenuVideo, MF_STRING, Menu::kVideoLoop, "Loop");
+
+    iRet = ::AppendMenuA(hMenuVideo, MF_STRING, Menu::kVideoPause, "Pause");
     if (iRet == 0)goto failed;
     iRet = ::AppendMenuA(hMenuVideo, MF_STRING, Menu::kVideoSetting, "Setting");
     if (iRet == 0)goto failed;
 
-    /*上部欄*/
+    /*区分*/
     hMenuBar = ::CreateMenu();
     if (hMenuBar == nullptr) goto failed;
-    iRet = ::AppendMenuA(hMenuBar, MF_POPUP, reinterpret_cast<UINT_PTR>(hManuFolder), "Folder");
+    iRet = ::AppendMenuA(hMenuBar, MF_POPUP, reinterpret_cast<UINT_PTR>(hMenuFolder), "Folder");
     if (iRet == 0)goto failed;
     iRet = ::AppendMenuA(hMenuBar, MF_POPUP, reinterpret_cast<UINT_PTR>(hMenuAudio), "Audio");
     if (iRet == 0)goto failed;
@@ -474,9 +541,9 @@ failed:
     std::wstring wstrMessage = L"Failed to create menu; code: " + std::to_wstring(::GetLastError());
     ::MessageBoxW(nullptr, wstrMessage.c_str(), L"Error", MB_ICONERROR);
     /*SetMenu成功後はウィンドウ破棄時に破棄されるが、今は紐づけ前なのでここで破棄する。*/
-    if (hManuFolder != nullptr)
+    if (hMenuFolder != nullptr)
     {
-        ::DestroyMenu(hManuFolder);
+        ::DestroyMenu(hMenuFolder);
     }
     if (hMenuAudio != nullptr)
     {
@@ -492,95 +559,13 @@ failed:
     }
 
 }
-/*再生機初期化*/
-void CMainWindow::InitialisePlayers()
-{
-    double dbVideoRate = 1.0;
-    double dbVideoVolume = 0.5;
-    double dbAudioRate = 1.0;
-    double dbAudioVolume = 0.5;
-
-    if (m_pScenePlayer != nullptr)
-    {
-        delete m_pScenePlayer;
-        m_pScenePlayer = nullptr;
-    }
-
-    if (m_pVideoPlayer != nullptr)
-    {
-        dbVideoRate = m_pVideoPlayer->GetCurrentRate();
-        dbVideoVolume = m_pVideoPlayer->GetCurrentVolume();
-        delete m_pVideoPlayer;
-        m_pVideoPlayer = nullptr;
-    }
-
-    if (m_pAudioPlayer != nullptr)
-    {
-        dbAudioRate = m_pAudioPlayer->GetCurrentRate();
-        dbAudioVolume = m_pAudioPlayer->GetCurrentVolume();
-        delete m_pAudioPlayer;
-        m_pAudioPlayer = nullptr;
-    }
-
-    m_pScenePlayer = new CScenePlayer(m_hWnd);
-
-    m_pVideoPlayer = new CMediaPlayer(m_hWnd);
-
-    m_pAudioPlayer = new CMediaPlayer(nullptr);
-
-    HMENU hMenuBar = ::GetMenu(m_hWnd);
-
-    /*動画設定復旧*/
-    if (m_pVideoPlayer != nullptr && hMenuBar != nullptr)
-    {
-        m_pVideoPlayer->SetCurrentRate(dbVideoRate);
-        m_pVideoPlayer->SetCurrentVolume(dbVideoVolume);
-
-        HMENU hMenu = ::GetSubMenu(hMenuBar, MenuBar::kVideo);
-        if (hMenu != nullptr)
-        {
-            UINT uiState = ::GetMenuState(hMenu, Menu::kVideoLoop, MF_BYCOMMAND);
-            if (uiState != -1)
-            {
-                /*初期状態では無効のはず*/
-                if (uiState & MF_CHECKED)
-                {
-                    BOOL iRet = m_pVideoPlayer->SwitchLoop();
-                    ::CheckMenuItem(hMenu, Menu::kVideoLoop, iRet == TRUE ? MF_CHECKED : MF_UNCHECKED);
-                }
-            }
-        }
-    }
-
-    /*音声設定復旧*/
-    if (m_pAudioPlayer != nullptr && hMenuBar != nullptr)
-    {
-        m_pAudioPlayer->SetCurrentRate(dbAudioRate);
-        m_pAudioPlayer->SetCurrentVolume(dbAudioVolume);
-
-        HMENU hMenu = ::GetSubMenu(hMenuBar, MenuBar::kAudio);
-        if (hMenu != nullptr)
-        {
-            UINT uiState = ::GetMenuState(hMenu, Menu::kAudioLoop, MF_BYCOMMAND);
-            if (uiState != -1)
-            {
-                if (uiState & MF_CHECKED)
-                {
-                    BOOL iRet = m_pAudioPlayer->SwitchLoop();
-                    ::CheckMenuItem(hMenu, Menu::kAudioLoop, iRet == TRUE ? MF_CHECKED : MF_UNCHECKED);
-                }
-            }
-        }
-    }
-    
-}
 /*フォルダ選択*/
 void CMainWindow::MenuOnOpenFolder()
 {
     std::wstring wstrPickedFolder = win_dialogue::SelectWorkFolder(m_hWnd);
     if (!wstrPickedFolder.empty())
     {
-        SetPlayerFolder(wstrPickedFolder.c_str());
+        SetupScenario(wstrPickedFolder.c_str());
         CreateFolderList(wstrPickedFolder.c_str());
     }
 }
@@ -591,7 +576,7 @@ void CMainWindow::MenuOnNextFolder()
 
     ++m_nFolderIndex;
     if (m_nFolderIndex >= m_folders.size())m_nFolderIndex = 0;
-    SetPlayerFolder(m_folders.at(m_nFolderIndex).c_str());
+    SetupScenario(m_folders.at(m_nFolderIndex).c_str());
 }
 /*前フォルダに移動*/
 void CMainWindow::MenuOnForeFolder()
@@ -600,31 +585,7 @@ void CMainWindow::MenuOnForeFolder()
 
     --m_nFolderIndex;
     if (m_nFolderIndex >= m_folders.size())m_nFolderIndex = m_folders.size() - 1;
-    SetPlayerFolder(m_folders.at(m_nFolderIndex).c_str());
-}
-/*次音声再生*/
-void CMainWindow::MenuOnNextAudio()
-{
-    if (m_pAudioPlayer != nullptr)
-    {
-        m_pAudioPlayer->Next();
-    }
-}
-/*前音声再生*/
-void CMainWindow::MenuOnForeAudio()
-{
-    if (m_pAudioPlayer != nullptr)
-    {
-        m_pAudioPlayer->Back();
-    }
-}
-/*現行音声再再生*/
-void CMainWindow::MenuOnPlayAudio()
-{
-    if (m_pAudioPlayer != nullptr)
-    {
-        m_pAudioPlayer->Play();
-    }
+    SetupScenario(m_folders.at(m_nFolderIndex).c_str());
 }
 /*音声ループ設定変更*/
 void CMainWindow::MenuOnAudioLoop()
@@ -643,8 +604,8 @@ void CMainWindow::MenuOnAudioLoop()
         }
     }
 }
-/*音量・再生速度変更*/
-void CMainWindow::MenuOnAudioVolume()
+/*音声設定画面呼び出し*/
+void CMainWindow::MenuOnAudioSetting()
 {
     if (m_pAudioPlayer != nullptr)
     {
@@ -657,34 +618,10 @@ void CMainWindow::MenuOnAudioVolume()
         }
     }
 }
-
-void CMainWindow::MenuOnNextVideo()
+/*動画一時停止*/
+void CMainWindow::MenuOnVideoPause()
 {
-    if (m_pVideoPlayer != nullptr)
-    {
-        m_pVideoPlayer->Next();
-    }
-}
-
-void CMainWindow::MenuOnForeVideo()
-{
-    if (m_pVideoPlayer != nullptr)
-    {
-        m_pVideoPlayer->Back();
-    }
-}
-
-void CMainWindow::MenuOnPlayVideo()
-{
-    if (m_pVideoPlayer != nullptr)
-    {
-        m_pVideoPlayer->Play();
-    }
-}
-
-void CMainWindow::MenuOnVideoLoop()
-{
-    if (m_pVideoPlayer != nullptr)
+    if (m_pVideoTransferor != nullptr)
     {
         HMENU hMenuBar = ::GetMenu(m_hWnd);
         if (hMenuBar != nullptr)
@@ -692,21 +629,21 @@ void CMainWindow::MenuOnVideoLoop()
             HMENU hMenu = ::GetSubMenu(hMenuBar, MenuBar::kVideo);
             if (hMenu != nullptr)
             {
-                BOOL iRet = m_pVideoPlayer->SwitchLoop();
-                ::CheckMenuItem(hMenu, Menu::kVideoLoop, iRet == TRUE ? MF_CHECKED : MF_UNCHECKED);
+                BOOL iRet = m_pVideoTransferor->SwitchPause();
+                ::CheckMenuItem(hMenu, Menu::kVideoPause, iRet == TRUE ? MF_CHECKED : MF_UNCHECKED);
             }
         }
     }
 }
-
-void CMainWindow::MenuOnVideoVolume()
+/*動画設定画面呼び出し*/
+void CMainWindow::MenuOnVideoSetting()
 {
-    if (m_pVideoPlayer != nullptr)
+    if (m_pVideoTransferor != nullptr)
     {
         CMediaSettingDialogue* pMediaSettingDialogue = new CMediaSettingDialogue();
         if (pMediaSettingDialogue != nullptr)
         {
-            pMediaSettingDialogue->Open(m_hInstance, m_hWnd, m_pVideoPlayer, L"Video");
+            pMediaSettingDialogue->Open(m_hInstance, m_hWnd, m_pVideoTransferor, L"Video");
 
             delete pMediaSettingDialogue;
         }
@@ -749,14 +686,9 @@ void CMainWindow::SwitchWindowMode()
         ::SetMenu(m_hWnd, m_hMenuBar);
     }
 
-    if (m_pScenePlayer != nullptr)
+    if (m_pViewManager != nullptr)
     {
-        m_pScenePlayer->SwitchSizeLore(m_bBarHidden);
-    }
-
-    if (m_pVideoPlayer != nullptr)
-    {
-        m_pVideoPlayer->SwitchSizeLore(m_bBarHidden);
+        m_pViewManager->OnStyleChanged();
     }
 }
 /*フォルダ一覧表作成*/
@@ -770,118 +702,312 @@ bool CMainWindow::CreateFolderList(const wchar_t* pwzFolderPath)
 
     return m_folders.size() > 0;
 }
-/*再生フォルダ設定*/
-void CMainWindow::SetPlayerFolder(const wchar_t* pwzFolderPath)
+/*寸劇構築*/
+void CMainWindow::SetupScenario(const wchar_t* pwzFolderPath)
 {
     if (pwzFolderPath == nullptr)return;
 
-    InitialisePlayers();
+    EndThreadpoolTimer();
+    ClearScenarioInfo();
+    ClearStoeredVideoFrame();
 
-    bool bRet = false;
+    m_bHasVideo = win_filesystem::CreateFilePathList(pwzFolderPath, L".mp4", m_videoFilePaths);
 
-    if (m_pAudioPlayer != nullptr)
+    std::vector<std::wstring> imageFilePaths;
+    bool bHasImage = win_filesystem::CreateFilePathList(pwzFolderPath, L".jpg", imageFilePaths);
+    if (bHasImage)
     {
-        std::vector<std::wstring> textFile;
-        win_filesystem::CreateFilePathList(pwzFolderPath, L".txt", textFile);
-        if (!textFile.empty())
+        for (const auto& imageFilePath : imageFilePaths)
         {
-            std::vector<std::wstring> audioFileNames;
-            FindAudioFileNames(textFile.at(0).c_str(), audioFileNames);
-            if (!audioFileNames.empty())
-            {
-                std::vector<std::wstring> filePaths;
-                for (const std::wstring& audioFileName : audioFileNames)
-                {
-                    filePaths.push_back(std::wstring(pwzFolderPath).append(L"\\").append(audioFileName));
-                }
-                bRet = m_pAudioPlayer->SetFiles(filePaths);
-            }
-        }
-        if (!bRet)
-        {
-            std::vector<std::wstring> filePaths;
-            bRet = win_filesystem::CreateFilePathList(pwzFolderPath, L".mp3", filePaths);
+            ImageInfo s{};
+            bool bRet = win_image::LoadImageToMemory(imageFilePath.c_str(), &s, 1.f);
             if (bRet)
             {
-                m_pAudioPlayer->SetFiles(filePaths);
+                m_imageInfo.push_back(s);
             }
         }
     }
 
-    m_bHasVideo = false;
-
-    if (m_pVideoPlayer != nullptr)
+    std::vector<std::wstring> textFile;
+    win_filesystem::CreateFilePathList(pwzFolderPath, L".txt", textFile);
+    if (!textFile.empty())
     {
-        std::vector<std::wstring> filePaths;
-        bRet = win_filesystem::CreateFilePathList(pwzFolderPath, L".mp4", filePaths);
-        if (bRet)
+        tnfr::LoadScenario(textFile.at(0), m_textData);
+
+        /*.txt無し、或いは読み取り失敗*/
+        if (m_textData.empty())
         {
-            m_bHasVideo = m_pVideoPlayer->SetFiles(filePaths);
+            std::vector<std::wstring> audioFilePaths;
+            win_filesystem::CreateFilePathList(pwzFolderPath, L".mp3", audioFilePaths);
+            for (const std::wstring& audioFilePath : audioFilePaths)
+            {
+                m_textData.emplace_back(adv::TextDatum{ L"", audioFilePath });
+            }
         }
     }
 
-    bool bHasImage = false;
-
-    if (m_pScenePlayer != nullptr && !m_bHasVideo)
+    if (m_bHasVideo)
     {
-        std::vector<std::wstring> filePaths;
-        bRet = win_filesystem::CreateFilePathList(pwzFolderPath, L".jpg", filePaths);
-        if (bRet)
+        StartVideoPlaying();
+    }
+    else if (!m_bHasVideo && bHasImage)
+    {
+        if (!m_imageInfo.empty() && m_pViewManager != nullptr)
         {
-            bHasImage = m_pScenePlayer->SetFiles(filePaths);
+            const ImageInfo& s = m_imageInfo.at(0);
+            m_pViewManager->SetBaseSize(s.uiWidth, s.uiHeight);
+            m_pViewManager->ResetZoom();
         }
     }
+
+    UpdateText();
 
     m_bPlayReady = m_bHasVideo || bHasImage;
 
     ChangeWindowTitle(m_bPlayReady ? pwzFolderPath : nullptr);
 }
-/*脚本内音声ファイル名探索*/
-void CMainWindow::FindAudioFileNames(const wchar_t* pwzFilePath, std::vector<std::wstring>& names)
+/*寸劇情報消去*/
+void CMainWindow::ClearScenarioInfo()
 {
-    std::wstring wstrText = win_text::WidenUtf8(win_filesystem::LoadFileAsString(pwzFilePath));
+    m_textData.clear();
+    m_nTextIndex = 0;
 
-    const wchar_t key[] = L"playvoice,1,";
-    size_t nKeyLen = wcslen(key);
+    m_imageInfo.clear();
+    m_nImageIndex = 0;
 
-    size_t nRead = 0;
-    size_t nPos = 0;
+    m_videoFilePaths.clear();
+    m_nVideoIndex = 0;
 
-    std::vector<std::wstring> audioFilePaths;
-
-    auto FindFirstSeparation = [](wchar_t* src)
-        ->wchar_t*
+    m_bFirstVideoLoaded = false;
+}
+/*再描画要求*/
+void CMainWindow::UpdateScreen()
+{
+    ::InvalidateRect(m_hWnd, nullptr, FALSE);
+}
+/*表示画像送り・戻し*/
+void CMainWindow::ShiftImage(bool bForward)
+{
+    if (m_bHasVideo)
+    {
+        if (bForward)
         {
-            const wchar_t ref[] = L",\r\n";
-            for (wchar_t* p = src; p != nullptr; ++p)
+            ++m_nVideoIndex;
+            if (m_nVideoIndex >= m_videoFilePaths.size())m_nVideoIndex = 0;
+        }
+        else
+        {
+            --m_nVideoIndex;
+            if (m_nVideoIndex >= m_videoFilePaths.size())m_nVideoIndex = m_videoFilePaths.size() - 1;
+        }
+        ClearStoeredVideoFrame();
+        StartVideoPlaying();
+    }
+    else
+    {
+        if (bForward)
+        {
+            ++m_nImageIndex;
+            if (m_nImageIndex >= m_imageInfo.size())m_nImageIndex = 0;
+        }
+        else
+        {
+            --m_nImageIndex;
+            if (m_nImageIndex >= m_imageInfo.size())m_nImageIndex = m_imageInfo.size() - 1;
+        }
+
+        UpdateScreen();
+    }
+}
+/*文章送り・戻し*/
+void CMainWindow::ShiftText(bool bForward)
+{
+    if (bForward)
+    {
+        ++m_nTextIndex;
+        if (m_nTextIndex >= m_textData.size())m_nTextIndex = 0;
+    }
+    else
+    {
+        --m_nTextIndex;
+        if (m_nTextIndex >= m_textData.size())m_nTextIndex = m_textData.size() - 1;
+    }
+    UpdateText();
+}
+/*文章更新*/
+void CMainWindow::UpdateText()
+{
+    if (m_nTextIndex < m_textData.size())
+    {
+        const adv::TextDatum& t = m_textData.at(m_nTextIndex);
+        if (!t.wstrVoicePath.empty())
+        {
+            if (m_pAudioPlayer != nullptr)
             {
-                for (size_t i = 0; i < sizeof(ref)/sizeof(wchar_t); ++i)
-                {
-                    if (*p == ref[i])return p;
-                }
+                m_pAudioPlayer->Play(t.wstrVoicePath.c_str());
             }
-            return nullptr;
-        };
-
-    for (;;)
-    {
-        wchar_t* p = wcsstr(&wstrText[nRead], key);
-        if (p == nullptr)break;
-
-        nRead += p - &wstrText[nRead] + nKeyLen;
-        p = FindFirstSeparation(&wstrText[nRead]);
-        if (p == nullptr)break;
-
-        size_t nLen = p - &wstrText[nRead];
-        audioFilePaths.push_back(wstrText.substr(nRead, nLen));
-        nRead += nLen;
+        }
+        constexpr unsigned int kTimerInterval = 2000;
+        ::SetTimer(m_hWnd, Timer::kText, kTimerInterval, nullptr);
     }
 
-    for (const std::wstring &audioFilePath : audioFilePaths)
-    {
-        nPos = audioFilePath.rfind(L"/");
-        if (nPos == std::wstring::npos)continue;
-        names.push_back(audioFilePath.substr(nPos + 1));
-    }
+    UpdateScreen();
+}
+/*自動送り*/
+void CMainWindow::AutoTexting()
+{
+    if (m_nTextIndex < m_textData.size() - 1)ShiftText(true);
+}
+/*表示文作成*/
+std::wstring CMainWindow::FormatCurrentText()
+{
+    if (m_nTextIndex > m_textData.size() - 1)return std::wstring();
 
+    const adv::TextDatum& t = m_textData.at(m_nTextIndex);
+    std::wstring wstr = t.wstrText;
+    if (!wstr.empty() && wstr.back() != L'\n')wstr.push_back(L'\n');
+    wstr += std::to_wstring(m_nTextIndex + 1) + L"/" + std::to_wstring(m_textData.size());
+    return wstr;
+}
+
+/*転送動画溜め置き*/
+void CMainWindow::StoreVideoFrame(long long llCurrentTime, const ImageInfo& imageInfo)
+{
+    constexpr int kMaxBufferMilliSeconds = 200;
+    if (llCurrentTime < kMaxBufferMilliSeconds)
+    {
+        m_storedVideoFrames.insert({ llCurrentTime, imageInfo });
+    }
+}
+/*溜め置き転送動画取り出し*/
+ImageInfo* CMainWindow::ReStoreVideoFrame(long long llCurrentTime)
+{
+    const auto iter = m_storedVideoFrames.find(llCurrentTime);
+    if (iter != m_storedVideoFrames.cend())
+    {
+        return &iter->second;
+    }
+    return nullptr;
+}
+/*一時保存方框消去*/
+void CMainWindow::ClearStoeredVideoFrame()
+{
+    m_storedVideoFrames.clear();
+}
+/*動画再生開始*/
+void CMainWindow::StartVideoPlaying()
+{
+    if (m_pVideoTransferor != nullptr && m_bHasVideo && m_nVideoIndex < m_videoFilePaths.size())
+    {
+        m_pVideoTransferor->Play(m_videoFilePaths.at(m_nVideoIndex).c_str());
+        StartThreadpoolTimer();
+    }
+}
+/*IMFMediaEngineNotify::EventNotify*/
+void CMainWindow::OnAudioPlayerEvent(unsigned long ulEvent)
+{
+    switch (ulEvent)
+    {
+    case MF_MEDIA_ENGINE_EVENT_LOADEDMETADATA:
+
+        break;
+    case MF_MEDIA_ENGINE_EVENT_ENDED:
+        AutoTexting();
+        break;
+    default:
+        break;
+    }
+}
+
+void CMainWindow::OnVideoPlayerEvent(unsigned long ulEvent)
+{
+    switch (ulEvent)
+    {
+    case MF_MEDIA_ENGINE_EVENT_LOADEDMETADATA:
+        if (m_pVideoTransferor != nullptr)
+        {
+            if (!m_bFirstVideoLoaded)
+            {
+                unsigned long uiWidth = 0;
+                unsigned long uiHeight = 0;
+                bool bRet = m_pVideoTransferor->GetVideoSize(&uiWidth, &uiHeight);
+                if (bRet)
+                {
+                    if (m_pViewManager != nullptr)
+                    {
+                        m_pViewManager->SetBaseSize(uiWidth, uiHeight);
+                        m_pViewManager->ResetZoom();
+                    }
+                    m_bFirstVideoLoaded = true;
+                }
+
+            }
+        }
+        break;
+    case MF_MEDIA_ENGINE_EVENT_TIMEUPDATE:
+
+        break;
+    case MF_MEDIA_ENGINE_EVENT_ENDED:
+
+        break;
+    default:
+        break;
+    }
+}
+/*描画間隔設定*/
+void CMainWindow::SetupDrawingInterval()
+{
+    DEVMODE sDevMode{};
+    ::EnumDisplaySettings(nullptr, ENUM_CURRENT_SETTINGS, &sDevMode);
+    m_nInterval = 1000 / sDevMode.dmDisplayFrequency;
+}
+/*タイマ開始*/
+void CMainWindow::StartThreadpoolTimer()
+{
+    if (m_pTpTimer != nullptr)return;
+
+    m_pTpTimer = ::CreateThreadpoolTimer(TimerCallback, this, nullptr);
+    if (m_pTpTimer != nullptr)
+    {
+        UpdateTimerInterval(m_pTpTimer);
+    }
+}
+/*タイマ停止*/
+void CMainWindow::EndThreadpoolTimer()
+{
+    if (m_pTpTimer != nullptr)
+    {
+        ::SetThreadpoolTimer(m_pTpTimer, nullptr, 0, 0);
+        ::WaitForThreadpoolTimerCallbacks(m_pTpTimer, TRUE);
+        ::CloseThreadpoolTimer(m_pTpTimer);
+        m_pTpTimer = nullptr;
+    }
+}
+/*呼び出し間隔更新*/
+void CMainWindow::UpdateTimerInterval(PTP_TIMER timer)
+{
+    if (timer != nullptr)
+    {
+        FILETIME sFileDueTime{};
+        ULARGE_INTEGER ulDueTime{};
+        ulDueTime.QuadPart = static_cast<ULONGLONG>(-(1LL * 10 * 1000 * m_nInterval));
+        sFileDueTime.dwHighDateTime = ulDueTime.HighPart;
+        sFileDueTime.dwLowDateTime = ulDueTime.LowPart;
+        ::SetThreadpoolTimer(timer, &sFileDueTime, 0, 0);
+    }
+}
+/*満了*/
+void CMainWindow::OnTide()
+{
+    UpdateScreen();
+}
+/*PTP_TIMER_CALLBACK*/
+void CMainWindow::TimerCallback(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_TIMER Timer)
+{
+    CMainWindow* pThis = static_cast<CMainWindow*>(Context);
+    if (pThis != nullptr)
+    {
+        pThis->OnTide();
+        pThis->UpdateTimerInterval(Timer);
+    }
 }

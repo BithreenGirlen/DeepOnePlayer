@@ -5,9 +5,14 @@
 
 #include <string>
 #include <vector>
+#include <unordered_map>
 
-#include "scene_player.h"
-#include "media_player.h"
+#include "d2_image_drawer.h"
+#include "d2_text_writer.h"
+#include "mf_media_player.h"
+#include "mf_video_transferor.h"
+#include "view_manager.h"
+#include "adv.h"
 
 class CMainWindow
 {
@@ -32,54 +37,108 @@ private:
 	LRESULT OnSize();
 	LRESULT OnKeyUp(WPARAM wParam, LPARAM lParam);
 	LRESULT OnCommand(WPARAM wParam, LPARAM lParam);
+	LRESULT OnTimer(WPARAM wParam);
 	LRESULT OnMouseWheel(WPARAM wParam, LPARAM lParam);
 	LRESULT OnLButtonDown(WPARAM wParam, LPARAM lParam);
 	LRESULT OnLButtonUp(WPARAM wParam, LPARAM lParam);
 	LRESULT OnMButtonUp(WPARAM wParam, LPARAM lParam);
 
-	enum Menu{kOpenFolder = 1, kNextFolder, kForeFolder,
-		kNextAudio, kForeAudio, kPlayAudio, kAudioLoop, kAudioSetting,
-		kNextVideo, kForeVideo, kPlayVideo, kVideoLoop, kVideoSetting,};
-	enum MenuBar{kFolder, kAudio, kVideo};
+	enum Menu
+	{
+		kOpenFolder = 1, kNextFolder, kForeFolder,
+		kAudioLoop, kAudioSetting,
+		kVideoPause, kVideoSetting
+	};
+	enum MenuBar
+	{
+		kFolder, kAudio, kVideo
+	};
+	enum EventMessage
+	{
+		kAudioPlayer = WM_USER + 1,
+		kVideoPlayer
+	};
+	enum Timer
+	{
+		kText = 1,
+	};
+
 	POINT m_CursorPos{};
+	bool m_bLeftDowned = false;
 
 	HMENU m_hMenuBar = nullptr;
 	bool m_bBarHidden = false;
 	bool m_bPlayReady = false;
 	bool m_bHasVideo = false;
+	bool m_bTextHidden = false;
 
 	std::vector<std::wstring> m_folders;
 	size_t m_nFolderIndex = 0;
 
 	void InitialiseMenuBar();
-	void InitialisePlayers();
 
 	void MenuOnOpenFolder();
 	void MenuOnNextFolder();
 	void MenuOnForeFolder();
 
-	void MenuOnNextAudio();
-	void MenuOnForeAudio();
-	void MenuOnPlayAudio();
 	void MenuOnAudioLoop();
-	void MenuOnAudioVolume();
+	void MenuOnAudioSetting();
 
-	void MenuOnNextVideo();
-	void MenuOnForeVideo();
-	void MenuOnPlayVideo();
-	void MenuOnVideoLoop();
-	void MenuOnVideoVolume();
+	void MenuOnVideoPause();
+	void MenuOnVideoSetting();
 
 	void ChangeWindowTitle(const wchar_t* pzTitle);
 	void SwitchWindowMode();
 
 	bool CreateFolderList(const wchar_t* pwzFolderPath);
-	void SetPlayerFolder(const wchar_t* pwzFolderPath);
-	void FindAudioFileNames(const wchar_t* pwzFilePath, std::vector<std::wstring> &names);
+	void SetupScenario(const wchar_t* pwzFolderPath);
+	void ClearScenarioInfo();
 
-	CScenePlayer* m_pScenePlayer = nullptr;
-	CMediaPlayer* m_pVideoPlayer = nullptr;
-	CMediaPlayer* m_pAudioPlayer = nullptr;
+	void UpdateScreen();
+
+	CD2ImageDrawer* m_pD2ImageDrawer = nullptr;
+	CD2TextWriter* m_pD2TextWriter = nullptr;
+	CMfMediaPlayer* m_pAudioPlayer = nullptr;
+	CMfVideoTransferor* m_pVideoTransferor = nullptr;
+	CViewManager* m_pViewManager = nullptr;
+
+	std::vector<adv::TextDatum> m_textData;
+	size_t m_nTextIndex = 0;
+
+	std::vector<ImageInfo> m_imageInfo;
+	size_t m_nImageIndex = 0;
+
+	std::vector<std::wstring> m_videoFilePaths;
+	size_t m_nVideoIndex = 0;
+
+	bool m_bFirstVideoLoaded = false;
+
+	void ShiftImage(bool bForward);
+	void ShiftText(bool bForward);
+	void UpdateText();
+	void AutoTexting();
+	std::wstring FormatCurrentText();
+
+	std::unordered_map<long long, ImageInfo> m_storedVideoFrames;
+	void StoreVideoFrame(long long llCurrentTime, const ImageInfo& imageInfo);
+	ImageInfo* ReStoreVideoFrame(long long llCurrentTime);
+	void ClearStoeredVideoFrame();
+
+	void StartVideoPlaying();
+
+	void OnAudioPlayerEvent(unsigned long ulEvent);
+	void OnVideoPlayerEvent(unsigned long ulEvent);
+
+	long long m_nInterval = 16;
+	PTP_TIMER m_pTpTimer = nullptr;
+
+	void SetupDrawingInterval();
+
+	void StartThreadpoolTimer();
+	void EndThreadpoolTimer();
+	void UpdateTimerInterval(PTP_TIMER timer);
+	void OnTide();
+	static void CALLBACK TimerCallback(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_TIMER Timer);
 };
 
 #endif //MAIN_WINDOW_H_

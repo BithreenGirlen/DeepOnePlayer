@@ -3,8 +3,6 @@
 
 #include <Windows.h>
 
-#include <string>
-
 class CMediaSettingDialogue
 {
 public:
@@ -14,8 +12,7 @@ public:
 	int MessageLoop();
 	HWND GetHwnd()const { return m_hWnd; }
 private:
-	std::wstring m_class_name = L"Media player setting dialogue";
-	std::wstring m_window_name = L"Setting";
+	const wchar_t* m_swzClassName = L"Media player setting dialogue";
 	HINSTANCE m_hInstance = nullptr;
 	HWND m_hWnd = nullptr;
 	HWND m_hParentWnd = nullptr;
@@ -29,7 +26,7 @@ private:
 	LRESULT OnPaint();
 	LRESULT OnSize();
 	LRESULT OnVScroll(WPARAM wParam, LPARAM lParam);
-	LRESULT OnCommand(WPARAM wParam);
+	LRESULT OnCommand(WPARAM wParam, LPARAM lParam);
 
 	enum Constants { kFontSize = 16, kTextWidth = 70};
 	enum Controls{kVolumeSlider = 1, kRateSkuder};
