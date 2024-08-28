@@ -24,9 +24,6 @@
     <ClInclude Include="main_window.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="file_operation.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
     <ClInclude Include="media_setting_dialogue.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
@@ -36,7 +33,13 @@
     <ClInclude Include="scene_player.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="file_system_utility.h">
+    <ClInclude Include="win_dialogue.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="win_filesystem.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="win_text.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>
@@ -45,9 +48,6 @@
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="main_window.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="file_operation.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="media_setting_dialogue.cpp">
@@ -59,7 +59,13 @@
     <ClCompile Include="scene_player.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="file_system_utility.cpp">
+    <ClCompile Include="win_dialogue.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="win_filesystem.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="win_text.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>

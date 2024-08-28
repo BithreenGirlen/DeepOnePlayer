@@ -48,7 +48,7 @@ private:
 	bool m_bHasVideo = false;
 
 	std::vector<std::wstring> m_folders;
-	size_t m_nIndex = 0;
+	size_t m_nFolderIndex = 0;
 
 	void InitialiseMenuBar();
 	void InitialisePlayers();

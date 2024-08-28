@@ -127,23 +127,25 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="file_system_utility.h" />
     <ClInclude Include="media_setting_dialogue.h" />
-    <ClInclude Include="file_operation.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="main_window.h" />
     <ClInclude Include="media_player.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="scene_player.h" />
+    <ClInclude Include="win_dialogue.h" />
+    <ClInclude Include="win_filesystem.h" />
+    <ClInclude Include="win_text.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="file_system_utility.cpp" />
     <ClCompile Include="media_setting_dialogue.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="file_operation.cpp" />
     <ClCompile Include="main_window.cpp" />
     <ClCompile Include="media_player.cpp" />
     <ClCompile Include="scene_player.cpp" />
+    <ClCompile Include="win_dialogue.cpp" />
+    <ClCompile Include="win_filesystem.cpp" />
+    <ClCompile Include="win_text.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="DeepOnePlayer.rc" />
