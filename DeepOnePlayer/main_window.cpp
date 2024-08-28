@@ -33,12 +33,12 @@ bool CMainWindow::Create(HINSTANCE hInstance)
     wcex.cbClsExtra = 0;
     wcex.cbWndExtra = 0;
     wcex.hInstance = hInstance;
-    wcex.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ICON_DEEPONE));
-    wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
-    wcex.hbrBackground = GetSysColorBrush(COLOR_BTNFACE);
+    wcex.hIcon = ::LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ICON_DEEPONE));
+    wcex.hCursor = ::LoadCursor(nullptr, IDC_ARROW);
+    wcex.hbrBackground = ::GetSysColorBrush(COLOR_BTNFACE);
     wcex.lpszMenuName = MAKEINTRESOURCEW(IDI_ICON_DEEPONE);
     wcex.lpszClassName = m_class_name.c_str();
-    wcex.hIconSm = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_ICON_DEEPONE));
+    wcex.hIconSm = ::LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_ICON_DEEPONE));
 
     if (::RegisterClassExW(&wcex))
     {
@@ -127,7 +127,7 @@ LRESULT CMainWindow::HandleMessage(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
     case WM_ERASEBKGND:
         return m_bHasVideo ? ::DefWindowProcW(hWnd, uMsg, wParam, lParam) : 0;
     case WM_COMMAND:
-        return OnCommand(wParam);
+        return OnCommand(wParam, lParam);
     case WM_MOUSEWHEEL:
         return OnMouseWheel(wParam, lParam);
     case WM_LBUTTONDOWN:
@@ -204,10 +204,10 @@ LRESULT CMainWindow::OnSize()
     return 0;
 }
 /*WM_COMMAND*/
-LRESULT CMainWindow::OnCommand(WPARAM wParam)
+LRESULT CMainWindow::OnCommand(WPARAM wParam, LPARAM lParam)
 {
-    int wmKind = HIWORD(wParam);
     int wmId = LOWORD(wParam);
+    int wmKind = LOWORD(lParam);
     if (wmKind == 0)
     {
         /*Menus*/
@@ -252,9 +252,12 @@ LRESULT CMainWindow::OnCommand(WPARAM wParam)
         case Menu::kVideoSetting:
             MenuOnVideoVolume();
             break;
+        default:
+
+            break;
         }
     }
-    if (wmKind > 1)
+    else
     {
         /*Controls*/
     }
@@ -321,7 +324,7 @@ LRESULT CMainWindow::OnLButtonUp(WPARAM wParam, LPARAM lParam)
 {
     WORD usKey = LOWORD(wParam);
 
-    if (usKey == MK_RBUTTON && m_bHideBar)
+    if (usKey == MK_RBUTTON && m_bBarHidden)
     {
         ::PostMessage(m_hWnd, WM_SYSCOMMAND, SC_MOVE, 0);
         INPUT input{};
@@ -729,9 +732,9 @@ void CMainWindow::SwitchWindowMode()
 
     LONG lStyle = ::GetWindowLong(m_hWnd, GWL_STYLE);
 
-    m_bHideBar ^= true;
+    m_bBarHidden ^= true;
 
-    if (m_bHideBar)
+    if (m_bBarHidden)
     {
         RECT rect;
         ::GetWindowRect(m_hWnd, &rect);
@@ -748,12 +751,12 @@ void CMainWindow::SwitchWindowMode()
 
     if (m_pScenePlayer != nullptr)
     {
-        m_pScenePlayer->SwitchSizeLore(m_bHideBar);
+        m_pScenePlayer->SwitchSizeLore(m_bBarHidden);
     }
 
     if (m_pVideoPlayer != nullptr)
     {
-        m_pVideoPlayer->SwitchSizeLore(m_bHideBar);
+        m_pVideoPlayer->SwitchSizeLore(m_bBarHidden);
     }
 }
 /*フォルダ一覧表作成*/

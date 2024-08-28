@@ -30,7 +30,8 @@ private:
 	LRESULT OnClose();
 	LRESULT OnPaint();
 	LRESULT OnSize();
-	LRESULT OnCommand(WPARAM wParam);
+	LRESULT OnKeyUp(WPARAM wParam, LPARAM lParam);
+	LRESULT OnCommand(WPARAM wParam, LPARAM lParam);
 	LRESULT OnMouseWheel(WPARAM wParam, LPARAM lParam);
 	LRESULT OnLButtonDown(WPARAM wParam, LPARAM lParam);
 	LRESULT OnLButtonUp(WPARAM wParam, LPARAM lParam);
@@ -43,7 +44,7 @@ private:
 	POINT m_CursorPos{};
 
 	HMENU m_hMenuBar = nullptr;
-	bool m_bHideBar = false;
+	bool m_bBarHidden = false;
 	bool m_bPlayReady = false;
 	bool m_bHasVideo = false;
 
