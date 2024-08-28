@@ -139,7 +139,7 @@
   <ItemGroup>
     <ClCompile Include="file_system_utility.cpp" />
     <ClCompile Include="media_setting_dialogue.cpp" />
-    <ClCompile Include="DeepOnePlayer.cpp" />
+    <ClCompile Include="main.cpp" />
     <ClCompile Include="file_operation.cpp" />
     <ClCompile Include="main_window.cpp" />
     <ClCompile Include="media_player.cpp" />
