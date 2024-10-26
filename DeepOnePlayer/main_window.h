@@ -105,7 +105,7 @@ private:
 	std::vector<adv::TextDatum> m_textData;
 	size_t m_nTextIndex = 0;
 
-	std::vector<ImageInfo> m_imageInfo;
+	std::vector<SImageFrame> m_imageFrames;
 	size_t m_nImageIndex = 0;
 
 	std::vector<std::wstring> m_videoFilePaths;
@@ -119,9 +119,9 @@ private:
 	void AutoTexting();
 	std::wstring FormatCurrentText();
 
-	std::unordered_map<long long, ImageInfo> m_storedVideoFrames;
-	void StoreVideoFrame(long long llCurrentTime, const ImageInfo& imageInfo);
-	ImageInfo* ReStoreVideoFrame(long long llCurrentTime);
+	std::unordered_map<long long, SImageFrame> m_storedVideoFrames;
+	void StoreVideoFrame(long long llCurrentTime, const SImageFrame& imageFrame);
+	SImageFrame* ReStoreVideoFrame(long long llCurrentTime);
 	void ClearStoeredVideoFrame();
 
 	void StartVideoPlaying();

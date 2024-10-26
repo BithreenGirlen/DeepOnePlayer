@@ -241,18 +241,18 @@ LRESULT CMainWindow::OnPaint()
             {
                 if (m_pViewManager != nullptr)
                 {
-                    ImageInfo sImageInfo;
-                    sImageInfo.uiWidth = sVideoFrame.iWidth;
-                    sImageInfo.uiHeight = sVideoFrame.iHeight;
-                    sImageInfo.iStride = sVideoFrame.uiStride;
-                    sImageInfo.pixels.resize(sVideoFrame.nPixelSize);
-                    memcpy(sImageInfo.pixels.data(), sVideoFrame.pPixels, sVideoFrame.nPixelSize);
+                    SImageFrame sImageFrame;
+                    sImageFrame.uiWidth = sVideoFrame.iWidth;
+                    sImageFrame.uiHeight = sVideoFrame.iHeight;
+                    sImageFrame.iStride = sVideoFrame.uiStride;
+                    sImageFrame.pixels.resize(sVideoFrame.nPixelSize);
+                    memcpy(sImageFrame.pixels.data(), sVideoFrame.pPixels, sVideoFrame.nPixelSize);
 
-                    bRet = m_pD2ImageDrawer->Draw(sImageInfo, { static_cast<float>(m_pViewManager->GetXOffset()), static_cast<float>(m_pViewManager->GetYOffset()) }, m_pViewManager->GetScale());
+                    bRet = m_pD2ImageDrawer->Draw(sImageFrame, { m_pViewManager->GetXOffset(), m_pViewManager->GetYOffset() }, m_pViewManager->GetScale());
 
                     if (bRet)
                     {
-                        StoreVideoFrame(sVideoFrame.llCurrentTime, sImageInfo);
+                        StoreVideoFrame(sVideoFrame.llCurrentTime, sImageFrame);
                     }
                 }
                 free(sVideoFrame.pPixels);
@@ -260,20 +260,20 @@ LRESULT CMainWindow::OnPaint()
             else
             {
                 long long llCurrentTime = m_pVideoTransferor->GetCurrentTimeInMilliSeconds();
-                ImageInfo* s = ReStoreVideoFrame(llCurrentTime);
+                SImageFrame* s = ReStoreVideoFrame(llCurrentTime);
                 if (s != nullptr)
                 {
-                    bRet = m_pD2ImageDrawer->Draw(*s, { static_cast<float>(m_pViewManager->GetXOffset()), static_cast<float>(m_pViewManager->GetYOffset()) }, m_pViewManager->GetScale());
+                    bRet = m_pD2ImageDrawer->Draw(*s, { m_pViewManager->GetXOffset(), m_pViewManager->GetYOffset() }, m_pViewManager->GetScale());
                 }
             }
         }
         else
         {
             /*静画*/
-            if (m_pViewManager != nullptr && m_nImageIndex < m_imageInfo.size())
+            if (m_pViewManager != nullptr && m_nImageIndex < m_imageFrames.size())
             {
-                ImageInfo &s = m_imageInfo.at(m_nImageIndex);
-                bRet = m_pD2ImageDrawer->Draw(s, { static_cast<float>(m_pViewManager->GetXOffset()), static_cast<float>(m_pViewManager->GetYOffset()) }, m_pViewManager->GetScale());
+                SImageFrame &s = m_imageFrames.at(m_nImageIndex);
+                bRet = m_pD2ImageDrawer->Draw(s, { m_pViewManager->GetXOffset(), m_pViewManager->GetYOffset() }, m_pViewManager->GetScale());
             }
         }
 
@@ -719,11 +719,11 @@ void CMainWindow::SetupScenario(const wchar_t* pwzFolderPath)
     {
         for (const auto& imageFilePath : imageFilePaths)
         {
-            ImageInfo s{};
+            SImageFrame s{};
             bool bRet = win_image::LoadImageToMemory(imageFilePath.c_str(), &s, 1.f);
             if (bRet)
             {
-                m_imageInfo.push_back(s);
+                m_imageFrames.push_back(s);
             }
         }
     }
@@ -752,9 +752,9 @@ void CMainWindow::SetupScenario(const wchar_t* pwzFolderPath)
     }
     else if (!m_bHasVideo && bHasImage)
     {
-        if (!m_imageInfo.empty() && m_pViewManager != nullptr)
+        if (!m_imageFrames.empty() && m_pViewManager != nullptr)
         {
-            const ImageInfo& s = m_imageInfo.at(0);
+            const SImageFrame& s = m_imageFrames[0];
             m_pViewManager->SetBaseSize(s.uiWidth, s.uiHeight);
             m_pViewManager->ResetZoom();
         }
@@ -772,7 +772,7 @@ void CMainWindow::ClearScenarioInfo()
     m_textData.clear();
     m_nTextIndex = 0;
 
-    m_imageInfo.clear();
+    m_imageFrames.clear();
     m_nImageIndex = 0;
 
     m_videoFilePaths.clear();
@@ -808,12 +808,12 @@ void CMainWindow::ShiftImage(bool bForward)
         if (bForward)
         {
             ++m_nImageIndex;
-            if (m_nImageIndex >= m_imageInfo.size())m_nImageIndex = 0;
+            if (m_nImageIndex >= m_imageFrames.size())m_nImageIndex = 0;
         }
         else
         {
             --m_nImageIndex;
-            if (m_nImageIndex >= m_imageInfo.size())m_nImageIndex = m_imageInfo.size() - 1;
+            if (m_nImageIndex >= m_imageFrames.size())m_nImageIndex = m_imageFrames.size() - 1;
         }
 
         UpdateScreen();
@@ -871,16 +871,16 @@ std::wstring CMainWindow::FormatCurrentText()
 }
 
 /*転送動画溜め置き*/
-void CMainWindow::StoreVideoFrame(long long llCurrentTime, const ImageInfo& imageInfo)
+void CMainWindow::StoreVideoFrame(long long llCurrentTime, const SImageFrame& imageFrame)
 {
     constexpr int kMaxBufferMilliSeconds = 200;
     if (llCurrentTime < kMaxBufferMilliSeconds)
     {
-        m_storedVideoFrames.insert({ llCurrentTime, imageInfo });
+        m_storedVideoFrames.insert({ llCurrentTime, imageFrame });
     }
 }
 /*溜め置き転送動画取り出し*/
-ImageInfo* CMainWindow::ReStoreVideoFrame(long long llCurrentTime)
+SImageFrame* CMainWindow::ReStoreVideoFrame(long long llCurrentTime)
 {
     const auto iter = m_storedVideoFrames.find(llCurrentTime);
     if (iter != m_storedVideoFrames.cend())

@@ -6,11 +6,11 @@
 
 #pragma comment (lib,"Windowscodecs.lib")
 
-bool win_image::LoadImageToMemory(const wchar_t* wpzFilePath, ImageInfo* pImageInfo, float fScale)
+bool win_image::LoadImageToMemory(const wchar_t* wpzFilePath, SImageFrame* pImageFrame, float fScale)
 {
-	if (pImageInfo == nullptr)return false;
+	if (pImageFrame == nullptr)return false;
 
-	ImageInfo* s = pImageInfo;
+	SImageFrame* s = pImageFrame;
 
 	CComPtr<IWICImagingFactory> pWicImageFactory;
 	HRESULT hr = ::CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pWicImageFactory));

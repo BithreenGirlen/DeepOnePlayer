@@ -45,7 +45,7 @@
     <ClInclude Include="win_image.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="image_info.h">
+    <ClInclude Include="image_frame.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="mf_media_player.h">

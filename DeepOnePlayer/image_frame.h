@@ -3,7 +3,7 @@
 
 #include <vector>
 
-struct ImageInfo
+struct SImageFrame
 {
 	unsigned int uiWidth = 0;
 	unsigned int uiHeight = 0;

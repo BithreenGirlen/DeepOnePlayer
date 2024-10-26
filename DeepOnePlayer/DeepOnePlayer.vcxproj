@@ -130,7 +130,7 @@
     <ClInclude Include="adv.h" />
     <ClInclude Include="d2_image_drawer.h" />
     <ClInclude Include="d2_text_writer.h" />
-    <ClInclude Include="image_info.h" />
+    <ClInclude Include="image_frame.h" />
     <ClInclude Include="media_setting_dialogue.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="main_window.h" />

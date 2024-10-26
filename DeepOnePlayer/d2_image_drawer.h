@@ -11,7 +11,7 @@
 
 #include <vector>
 
-#include "image_info.h"
+#include "image_frame.h"
 
 class CD2ImageDrawer
 {
@@ -20,7 +20,7 @@ public:
 	~CD2ImageDrawer();
 
 	void Clear(const D2D1::ColorF &colour = D2D1::ColorF(255, 255, 255, 255));
-	bool Draw(const ImageInfo &imageInfo, const D2D_VECTOR_2F fOffset = {0.f, 0.f}, float fScale = 1.f);
+	bool Draw(const SImageFrame &imageFrame, const D2D_VECTOR_2F fOffset = {0.f, 0.f}, float fScale = 1.f);
 	void Display();
 
 	ID2D1Factory1* GetD2Factory()const { return m_pD2d1Factory1; }
@@ -38,8 +38,8 @@ private:
 	unsigned int m_uiWindowHeight = 0;
 
 	void ReleaseBitmap();
-	bool CheckBitmapSize(const ImageInfo& imageInfo);
-	bool CreateBitmapForDrawing(const ImageInfo& imageInfo);
+	bool CheckBitmapSize(const SImageFrame& imageFrame);
+	bool CreateBitmapForDrawing(const SImageFrame& imageFrame);
 	bool CheckBufferSize();
 	bool ResizeBuffer();
 };

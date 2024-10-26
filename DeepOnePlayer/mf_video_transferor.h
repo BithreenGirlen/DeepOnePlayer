@@ -5,7 +5,7 @@
 * MF Media Engine in frame-server mode.
 * 
 * For fundamental features, rendering mode is easier to use.
-* But in rendering mode, the video frame is always drawed on topmost of the target window that
+* But in rendering mode, the video frame is always drawn on topmost of the target window that
 * it is impossible to draw text on video frame.
 * Thus, frame-server mode is used to controll drawring order.
 * 
