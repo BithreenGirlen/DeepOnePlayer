@@ -16,8 +16,8 @@ public:
     void OnStyleChanged();
 
     float GetScale() const { return m_fScale; };
-    int GetXOffset() const { return m_iXOffset; };
-    int GetYOffset() const { return m_iYOffset; };
+    float GetXOffset() const { return m_fXOffset; };
+    float GetYOffset() const { return m_fYOffset; };
 private:
     enum Constants { kBaseWidth = 1280, kBaseHeight = 720 };
 
@@ -29,15 +29,13 @@ private:
     float m_fThresholdScale = 1.f;
 
     float m_fScale = 1.f;
-    int m_iXOffset = 0;
-    int m_iYOffset = 0;
+    float m_fXOffset = 0;
+    float m_fYOffset = 0;
 
     void WorkOutDefaultScale();
     void ResizeWindow();
     void AdjustOffset();
     void RequestRedraw();
-
-    bool IsWidowBarHidden();
 };
 
 #endif // !VIEW_MANAGER_H_

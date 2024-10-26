@@ -39,8 +39,8 @@ void CViewManager::Rescale(bool bUpscale)
 /*原点位置移動*/
 void CViewManager::SetOffset(int iX, int iY)
 {
-	m_iXOffset += iX;
-	m_iYOffset += iY;
+	m_fXOffset += iX;
+	m_fYOffset += iY;
 	AdjustOffset();
 	RequestRedraw();
 }
@@ -48,8 +48,8 @@ void CViewManager::SetOffset(int iX, int iY)
 void CViewManager::ResetZoom()
 {
 	m_fScale = 1.f;
-	m_iXOffset = 0;
-	m_iYOffset = 0;
+	m_fXOffset = 0;
+	m_fYOffset = 0;
 
 	ResizeWindow();
 }
@@ -86,33 +86,28 @@ void CViewManager::ResizeWindow()
 {
 	if (m_hRetWnd != nullptr)
 	{
-		bool bBarHidden = IsWidowBarHidden();
-		RECT rect;
-		if (!bBarHidden)
-		{
-			::GetWindowRect(m_hRetWnd, &rect);
-		}
-		else
-		{
-			::GetClientRect(m_hRetWnd, &rect);
-		}
+		const auto IsWidowBarHidden = [this]()
+			-> bool
+			{
+				if (m_hRetWnd != nullptr)
+				{
+					LONG lStyle = ::GetWindowLong(m_hRetWnd, GWL_STYLE);
+					return !((lStyle & WS_CAPTION) && (lStyle & WS_SYSMENU));
+				}
+				return false;
+			};
 
+		RECT rect;
+		::GetWindowRect(m_hRetWnd, &rect);
 		int iX = static_cast<int>(m_uiBaseWidth * m_fScale);
 		int iY = static_cast<int>(m_uiBaseHeight * m_fScale);
+
 		rect.right = iX + rect.left;
 		rect.bottom = iY + rect.top;
-		if (!bBarHidden)
-		{
-			LONG lStyle = ::GetWindowLong(m_hRetWnd, GWL_STYLE);
-			::AdjustWindowRect(&rect, lStyle, TRUE);
-			::SetWindowPos(m_hRetWnd, HWND_TOP, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, SWP_NOMOVE | SWP_NOZORDER);
-		}
-		else
-		{
-			RECT rc;
-			::GetWindowRect(m_hRetWnd, &rc);
-			::MoveWindow(m_hRetWnd, rc.left, rc.top, rect.right, rect.bottom, TRUE);
-		}
+		LONG lStyle = ::GetWindowLong(m_hRetWnd, GWL_STYLE);
+		bool bBarHidden = IsWidowBarHidden();
+		::AdjustWindowRect(&rect, lStyle, bBarHidden ? FALSE : TRUE);
+		::SetWindowPos(m_hRetWnd, HWND_TOP, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, SWP_NOMOVE | SWP_NOZORDER);
 	}
 
 	AdjustOffset();
@@ -135,11 +130,11 @@ void CViewManager::AdjustOffset()
 		int iXOffsetMax = iScaledWidth > iClientWidth ? static_cast<int>((iScaledWidth - iClientWidth)/ m_fScale) : 0;
 		int iYOffsetMax = iScaledHeight > iClientHeight ? static_cast<int>((iScaledHeight - iClientHeight) / m_fScale) : 0;
 
-		if (m_iXOffset < 0) m_iXOffset = 0;
-		if (m_iYOffset < 0) m_iYOffset = 0;
+		if (m_fXOffset < 0) m_fXOffset = 0;
+		if (m_fYOffset < 0) m_fYOffset = 0;
 
-		if (m_iXOffset > iXOffsetMax)m_iXOffset = iXOffsetMax;
-		if (m_iYOffset > iYOffsetMax)m_iYOffset = iYOffsetMax;
+		if (m_fXOffset > iXOffsetMax)m_fXOffset = static_cast<float>(iXOffsetMax);
+		if (m_fYOffset > iYOffsetMax)m_fYOffset = static_cast<float>(iYOffsetMax);
 	}
 }
 /*再描画要求*/
@@ -149,14 +144,4 @@ void CViewManager::RequestRedraw()
 	{
 		::InvalidateRect(m_hRetWnd, nullptr, FALSE);
 	}
-}
-/*ウィンドウバー有無*/
-bool CViewManager::IsWidowBarHidden()
-{
-	if (m_hRetWnd != nullptr)
-	{
-		LONG lStyle = ::GetWindowLong(m_hRetWnd, GWL_STYLE);
-		return !((lStyle & WS_CAPTION) && (lStyle & WS_SYSMENU));
-	}
-	return false;
 }
