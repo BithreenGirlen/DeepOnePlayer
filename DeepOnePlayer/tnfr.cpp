@@ -62,6 +62,25 @@ namespace tnfr
         }
     }
 
+    void EliminateRuby(std::wstring& wstr)
+    {
+        for (size_t nRead = 0;;)
+        {
+            size_t nPos = wstr.find(L"<ruby>", nRead);
+            if (nPos == std::wstring::npos)break;
+
+            size_t nPos1 = wstr.find(L'|', nPos);
+            if (nPos1 == std::wstring::npos)break;
+
+            size_t nPos2 = wstr.find(L'<', nPos1);
+            if (nPos2 == std::wstring::npos)break;
+
+            size_t nLen = nPos2 - nPos1;
+            wstr.replace(nPos1, nLen, L"");
+            nRead = nPos1;
+        }
+    }
+
     void EliminateTag(std::wstring& wstr)
     {
         std::wstring wstrResult;
@@ -135,6 +154,7 @@ bool tnfr::LoadScenario(const std::wstring &wstrFilePath, std::vector<adv::TextD
         {
             if (columns.size() > 1 && columns[1][0] == '<')
             {
+                EliminateRuby(columns[1]);
                 EliminateTag(columns[1]);
                 nameBuffer = columns[1];
             }
