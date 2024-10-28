@@ -45,7 +45,7 @@ private:
 
 	enum Menu
 	{
-		kOpenFolder = 1, kNextFolder, kForeFolder,
+		kOpenFolder = 1, 
 		kAudioLoop, kAudioSetting,
 		kVideoPause, kVideoSetting
 	};
@@ -78,14 +78,15 @@ private:
 	void InitialiseMenuBar();
 
 	void MenuOnOpenFolder();
-	void MenuOnNextFolder();
-	void MenuOnForeFolder();
 
 	void MenuOnAudioLoop();
 	void MenuOnAudioSetting();
 
 	void MenuOnVideoPause();
 	void MenuOnVideoSetting();
+
+	void KeyUpOnNextFolder();
+	void KeyUpOnForeFolder();
 
 	void ChangeWindowTitle(const wchar_t* pzTitle);
 	void SwitchWindowMode();

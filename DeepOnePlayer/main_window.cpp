@@ -235,27 +235,16 @@ LRESULT CMainWindow::OnPaint()
 
         if (m_bHasVideo)
         {
-            CMfVideoTransferor::SVideoFrame sVideoFrame{};
-            bRet = m_pVideoTransferor->TransferVideoFrame(&sVideoFrame);
-            if (bRet && sVideoFrame.pPixels != nullptr)
+            SImageFrame s{};
+            long long llCurrentTime = 0;
+            bRet = m_pVideoTransferor->TransferVideoFrame(&s, &llCurrentTime);
+            if (bRet)
             {
-                if (m_pViewManager != nullptr)
+                bRet = m_pD2ImageDrawer->Draw(s, { m_pViewManager->GetXOffset(), m_pViewManager->GetYOffset() }, m_pViewManager->GetScale());
+                if (bRet)
                 {
-                    SImageFrame sImageFrame;
-                    sImageFrame.uiWidth = sVideoFrame.iWidth;
-                    sImageFrame.uiHeight = sVideoFrame.iHeight;
-                    sImageFrame.iStride = sVideoFrame.uiStride;
-                    sImageFrame.pixels.resize(sVideoFrame.nPixelSize);
-                    memcpy(sImageFrame.pixels.data(), sVideoFrame.pPixels, sVideoFrame.nPixelSize);
-
-                    bRet = m_pD2ImageDrawer->Draw(sImageFrame, { m_pViewManager->GetXOffset(), m_pViewManager->GetYOffset() }, m_pViewManager->GetScale());
-
-                    if (bRet)
-                    {
-                        StoreVideoFrame(sVideoFrame.llCurrentTime, sImageFrame);
-                    }
+                    StoreVideoFrame(llCurrentTime, s);
                 }
-                free(sVideoFrame.pPixels);
             }
             else
             {
@@ -307,10 +296,10 @@ LRESULT CMainWindow::OnKeyUp(WPARAM wParam, LPARAM lParam)
         ::PostMessage(m_hWnd, WM_CLOSE, 0, 0);
         break;
     case VK_UP:
-        MenuOnForeFolder();
+        KeyUpOnForeFolder();
         break;
     case VK_DOWN:
-        MenuOnNextFolder();
+        KeyUpOnNextFolder();
         break;
     case 'C':
         if (m_pD2TextWriter != nullptr)
@@ -338,12 +327,6 @@ LRESULT CMainWindow::OnCommand(WPARAM wParam, LPARAM lParam)
         {
         case Menu::kOpenFolder:
             MenuOnOpenFolder();
-            break;
-        case Menu::kNextFolder:
-            MenuOnNextFolder();
-            break;
-        case Menu::kForeFolder:
-            MenuOnForeFolder();
             break;
         case Menu::kAudioLoop:
             MenuOnAudioLoop();
@@ -496,10 +479,6 @@ void CMainWindow::InitialiseMenuBar()
     if (hMenuFolder == nullptr)goto failed;
     iRet = ::AppendMenuA(hMenuFolder, MF_STRING, Menu::kOpenFolder, "Open");
     if (iRet == 0)goto failed;
-    iRet = ::AppendMenuA(hMenuFolder, MF_STRING, Menu::kNextFolder, "Next");
-    if (iRet == 0)goto failed;
-    iRet = ::AppendMenuA(hMenuFolder, MF_STRING, Menu::kForeFolder, "Back");
-    if (iRet == 0)goto failed;
 
     /*音声*/
     hMenuAudio = ::CreateMenu();
@@ -569,24 +548,6 @@ void CMainWindow::MenuOnOpenFolder()
         CreateFolderList(wstrPickedFolder.c_str());
     }
 }
-/*次フォルダに移動*/
-void CMainWindow::MenuOnNextFolder()
-{
-    if (m_folders.empty())return;
-
-    ++m_nFolderIndex;
-    if (m_nFolderIndex >= m_folders.size())m_nFolderIndex = 0;
-    SetupScenario(m_folders.at(m_nFolderIndex).c_str());
-}
-/*前フォルダに移動*/
-void CMainWindow::MenuOnForeFolder()
-{
-    if (m_folders.empty())return;
-
-    --m_nFolderIndex;
-    if (m_nFolderIndex >= m_folders.size())m_nFolderIndex = m_folders.size() - 1;
-    SetupScenario(m_folders.at(m_nFolderIndex).c_str());
-}
 /*音声ループ設定変更*/
 void CMainWindow::MenuOnAudioLoop()
 {
@@ -648,6 +609,24 @@ void CMainWindow::MenuOnVideoSetting()
             delete pMediaSettingDialogue;
         }
     }
+}
+/*次フォルダに移動*/
+void CMainWindow::KeyUpOnNextFolder()
+{
+    if (m_folders.empty())return;
+
+    ++m_nFolderIndex;
+    if (m_nFolderIndex >= m_folders.size())m_nFolderIndex = 0;
+    SetupScenario(m_folders.at(m_nFolderIndex).c_str());
+}
+/*前フォルダに移動*/
+void CMainWindow::KeyUpOnForeFolder()
+{
+    if (m_folders.empty())return;
+
+    --m_nFolderIndex;
+    if (m_nFolderIndex >= m_folders.size())m_nFolderIndex = m_folders.size() - 1;
+    SetupScenario(m_folders.at(m_nFolderIndex).c_str());
 }
 /*標題変更*/
 void CMainWindow::ChangeWindowTitle(const wchar_t* pzTitle)
@@ -732,7 +711,7 @@ void CMainWindow::SetupScenario(const wchar_t* pwzFolderPath)
     win_filesystem::CreateFilePathList(pwzFolderPath, L".txt", textFile);
     if (!textFile.empty())
     {
-        tnfr::LoadScenario(textFile.at(0), m_textData);
+        tnfr::LoadScenario(textFile[0], m_textData);
 
         /*.txt無し、或いは読み取り失敗*/
         if (m_textData.empty())

@@ -16,9 +16,9 @@ CMfVideoTransferor::~CMfVideoTransferor()
 	ReleaseWicBitmap();
 }
 /*“]‘—*/
-bool CMfVideoTransferor::TransferVideoFrame(SVideoFrame* pVideoFrame)
+bool CMfVideoTransferor::TransferVideoFrame(SImageFrame* pImageFrame, long long* llCurrentTime)
 {
-	if (pVideoFrame == nullptr)return false;
+	if (pImageFrame == nullptr)return false;
 
 	if (m_pmfEngineEx != nullptr)
 	{
@@ -29,7 +29,10 @@ bool CMfVideoTransferor::TransferVideoFrame(SVideoFrame* pVideoFrame)
 			HRESULT hr = m_pmfEngineEx->OnVideoStreamTick(&llReadyFrame);
 			if (SUCCEEDED(hr) && llReadyFrame >= 0)
 			{
-				pVideoFrame->llCurrentTime = GetCurrentTimeInMilliSeconds();
+				if (llCurrentTime != nullptr)
+				{
+					*llCurrentTime = GetCurrentTimeInMilliSeconds();
+				}
 
 				unsigned long ulDestWidth = 0;
 				unsigned long ulDestHeight = 0;
@@ -52,33 +55,28 @@ bool CMfVideoTransferor::TransferVideoFrame(SVideoFrame* pVideoFrame)
 				hr = m_pWicBitmap->GetSize(&uiWidth, &uiHeight);
 				if (FAILED(hr))return false;
 
-				pVideoFrame->iWidth = uiWidth;
-				pVideoFrame->iHeight = uiHeight;
-
 				CComPtr<IWICBitmapLock> pWicBitmapLock;
-				WICRect wicRect{ 0, 0, pVideoFrame->iWidth, pVideoFrame->iHeight };
+				WICRect wicRect{ 0, 0, static_cast<INT>(uiWidth), static_cast<INT>(uiHeight) };
 				hr = m_pWicBitmap->Lock(&wicRect, WICBitmapLockFlags::WICBitmapLockRead, &pWicBitmapLock);
 				if (FAILED(hr))return false;
 
-				hr = pWicBitmapLock->GetStride(&pVideoFrame->uiStride);
+				unsigned int uiStride = 0;
+				hr = pWicBitmapLock->GetStride(&uiStride);
 				if (FAILED(hr))return false;
 
-				pVideoFrame->nPixelSize = static_cast<size_t>(pVideoFrame->uiStride * pVideoFrame->iHeight);
-				pVideoFrame->pPixels = static_cast<unsigned char*>(malloc(pVideoFrame->nPixelSize));
-				if (pVideoFrame->pPixels == nullptr)return false;
+				pImageFrame->uiWidth = uiWidth;
+				pImageFrame->uiHeight = uiHeight;
+				pImageFrame->iStride = uiStride;
 
-				hr = m_pWicBitmap->CopyPixels(nullptr, pVideoFrame->uiStride, static_cast<UINT>(pVideoFrame->nPixelSize), pVideoFrame->pPixels);
-				if (FAILED(hr))
-				{
-					free(pVideoFrame->pPixels);
-					return false;
-				}
+				size_t nPixelSize = static_cast<size_t>(uiStride * uiHeight);
+				pImageFrame->pixels.resize(nPixelSize);
+
+				hr = m_pWicBitmap->CopyPixels(nullptr, uiStride, static_cast<UINT>(pImageFrame->pixels.size()), pImageFrame->pixels.data());
 
 				return SUCCEEDED(hr);
 			}
 		}
 	}
-
 	return false;
 }
 

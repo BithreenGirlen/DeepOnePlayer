@@ -14,6 +14,7 @@
 #include <wincodec.h>
 
 #include "mf_media_player.h"
+#include "image_frame.h"
 
 class CMfVideoTransferor : public CMfMediaPlayer
 {
@@ -21,16 +22,7 @@ public:
 	CMfVideoTransferor();
 	~CMfVideoTransferor();
 
-	struct SVideoFrame
-	{
-		int iWidth = 0;
-		int iHeight = 0;
-		unsigned int uiStride = 0;
-		unsigned char* pPixels = nullptr;
-		size_t nPixelSize = 0;
-		long long llCurrentTime = 0;
-	};
-	bool TransferVideoFrame(SVideoFrame* pVideoFrame);
+	bool TransferVideoFrame(SImageFrame* pImageFrame, long long* llCurrentTime = nullptr);
 
 	bool SetPlaybackWindow(HWND hWnd, UINT uMsg);
 	bool ResizeBuffer();
