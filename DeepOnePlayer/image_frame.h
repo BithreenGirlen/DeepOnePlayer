@@ -1,5 +1,5 @@
-﻿#ifndef IMAGE_INFO_H_
-#define IMAGE_INFO_H_
+﻿#ifndef IMAGE_FRAME_H_
+#define IMAGE_FRAME_H_
 
 #include <vector>
 
@@ -11,4 +11,4 @@ struct SImageFrame
 	std::vector<unsigned char> pixels;
 };
 
-#endif // !IMAGE_INFO_H_
+#endif // !IMAGE_FRAME_H_
