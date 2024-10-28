@@ -23,7 +23,7 @@ void CViewManager::SetBaseSize(unsigned int uiWidth, unsigned int uiHeight)
 /*尺度変更*/
 void CViewManager::Rescale(bool bUpscale)
 {
-	constexpr float fScaleMin = 0.5f;
+	constexpr float fScaleMin = 0.25f;
 	constexpr float fScalePortion = 0.05f;
 	if (bUpscale)
 	{
@@ -45,9 +45,9 @@ void CViewManager::SetOffset(int iX, int iY)
 	RequestRedraw();
 }
 /*原寸表示*/
-void CViewManager::ResetZoom()
+void CViewManager::ResetZoom(float fScale)
 {
-	m_fScale = 1.f;
+	m_fScale = fScale;
 	m_fXOffset = 0;
 	m_fYOffset = 0;
 

@@ -12,7 +12,7 @@ public:
     void SetBaseSize(unsigned int uiWidth, unsigned int uiHeight);
     void Rescale(bool bUpscale);
     void SetOffset(int iX, int iY);
-    void ResetZoom();
+    void ResetZoom(float fScale = 1.f);
     void OnStyleChanged();
 
     float GetScale() const { return m_fScale; };

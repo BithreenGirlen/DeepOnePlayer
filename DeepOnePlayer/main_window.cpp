@@ -229,11 +229,11 @@ LRESULT CMainWindow::OnPaint()
     PAINTSTRUCT ps;
     HDC hdc = ::BeginPaint(m_hWnd, &ps);
 
-    if (m_pD2ImageDrawer != nullptr)
+    if (m_pD2ImageDrawer != nullptr && m_pViewManager != nullptr)
     {
         bool bRet = false;
 
-        if (m_bHasVideo)
+        if (m_bHasVideo && m_pVideoTransferor != nullptr)
         {
             SImageFrame s{};
             long long llCurrentTime = 0;
@@ -259,7 +259,7 @@ LRESULT CMainWindow::OnPaint()
         else
         {
             /*静画*/
-            if (m_pViewManager != nullptr && m_nImageIndex < m_imageFrames.size())
+            if (m_nImageIndex < m_imageFrames.size())
             {
                 SImageFrame &s = m_imageFrames.at(m_nImageIndex);
                 bRet = m_pD2ImageDrawer->Draw(s, { m_pViewManager->GetXOffset(), m_pViewManager->GetYOffset() }, m_pViewManager->GetScale());
@@ -915,7 +915,7 @@ void CMainWindow::OnVideoPlayerEvent(unsigned long ulEvent)
                     if (m_pViewManager != nullptr)
                     {
                         m_pViewManager->SetBaseSize(uiWidth, uiHeight);
-                        m_pViewManager->ResetZoom();
+                        m_pViewManager->ResetZoom(1 / 1.5f);
                     }
                     m_bFirstVideoLoaded = true;
                 }
