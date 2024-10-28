@@ -100,7 +100,7 @@ namespace tnfr
     }
     std::wstring TruncateFilePath(const std::wstring& strRelativePath)
     {
-        size_t nPos = strRelativePath.rfind(L'/');
+        size_t nPos = strRelativePath.find_last_of(L"\\/");
         if (nPos != std::wstring::npos)
         {
             return strRelativePath.substr(nPos + 1);
@@ -118,6 +118,7 @@ bool tnfr::LoadScenario(const std::wstring &wstrFilePath, std::vector<adv::TextD
     std::vector<std::wstring> lines;
     TextToLines(wstrText, lines);
 
+    std::wstring nameBuffer;
     std::wstring playVoiceBuffer;
 
     for (auto& line : lines)
@@ -127,24 +128,45 @@ bool tnfr::LoadScenario(const std::wstring &wstrFilePath, std::vector<adv::TextD
 
         if (columns.empty())continue;
 
-        const auto& strType = columns.at(0);
+        const auto& strType = columns[0];
         for (auto& column : columns)ReplaceAll(column, L"\t", L"");
 
-        if (strType == L"playvoice")
+        if (strType == L"name")
+        {
+            if (columns.size() > 1 && columns[1][0] == '<')
+            {
+                EliminateTag(columns[1]);
+                nameBuffer = columns[1];
+            }
+            else
+            {
+                nameBuffer.clear();
+            }
+        }
+        else if (strType == L"playvoice")
         {
             if (columns.size() > 2)
             {
-                playVoiceBuffer = columns.at(2);
+                playVoiceBuffer = columns[2];
             }
         }
         else if (strType == L"msg")
         {
-            if (columns.size() > 2 && !columns.at(2).empty())
+            if (columns.size() > 2 && !columns[2].empty())
             {
+                std::wstring& wstr = columns[2];
                 adv::TextDatum t;
-                EliminateTag(columns.at(2));
-                ReplaceAll(columns.at(2), L"\\n", L"\n");
-                t.wstrText = columns.at(2);
+                t.wstrText.reserve(128);
+                EliminateTag(wstr);
+                ReplaceAll(wstr, L"\\n", L"\n");
+
+                if (!nameBuffer.empty())
+                {
+                    t.wstrText = nameBuffer;
+                    t.wstrText += L": \n";
+                }
+
+                t.wstrText += wstr;
                 if (!playVoiceBuffer.empty())
                 {
                     t.wstrVoicePath = wstrParent + L"\\" + TruncateFilePath(playVoiceBuffer);
