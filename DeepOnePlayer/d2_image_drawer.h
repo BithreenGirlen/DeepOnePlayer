@@ -9,8 +9,6 @@
 #include <dwrite.h>
 #include <dwrite_1.h>
 
-#include <vector>
-
 #include "image_frame.h"
 
 class CD2ImageDrawer
@@ -38,8 +36,8 @@ private:
 	unsigned int m_uiWindowHeight = 0;
 
 	void ReleaseBitmap();
-	bool CheckBitmapSize(const SImageFrame& imageFrame);
-	bool CreateBitmapForDrawing(const SImageFrame& imageFrame);
+	bool CheckBitmapSize(unsigned long uiWidth, unsigned long uiHeight);
+	bool CreateBitmapForDrawing(unsigned long uiWidth, unsigned long uiHeight);
 	bool CheckBufferSize();
 	bool ResizeBuffer();
 };

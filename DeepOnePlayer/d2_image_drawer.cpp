@@ -113,7 +113,7 @@ bool CD2ImageDrawer::Draw(const SImageFrame& imageFrame, const D2D_VECTOR_2F fOf
 
 	if (imageFrame.uiWidth == 0 && imageFrame.uiHeight == 0)return false;
 
-	bool bRet = CheckBitmapSize(imageFrame);
+	bool bRet = CheckBitmapSize(imageFrame.uiWidth, imageFrame.uiHeight);
 	if (!bRet)return false;
 
 	bRet = CheckBufferSize();
@@ -160,18 +160,18 @@ void CD2ImageDrawer::ReleaseBitmap()
 	}
 }
 /*複写枠寸法確認*/
-bool CD2ImageDrawer::CheckBitmapSize(const SImageFrame& imageFrame)
+bool CD2ImageDrawer::CheckBitmapSize(unsigned long uiWidth, unsigned long uiHeight)
 {
 	if (m_pD2d1Bitmap == nullptr)
 	{
-		return CreateBitmapForDrawing(imageFrame);
+		return CreateBitmapForDrawing(uiWidth, uiHeight);
 	}
 	else
 	{
 		const D2D1_SIZE_U& uBitmapSize = m_pD2d1Bitmap->GetPixelSize();
-		if (imageFrame.uiWidth > uBitmapSize.width && imageFrame.uiHeight > uBitmapSize.height)
+		if (uiWidth > uBitmapSize.width && uiHeight > uBitmapSize.height)
 		{
-			return CreateBitmapForDrawing(imageFrame);
+			return CreateBitmapForDrawing(uiWidth, uiHeight);
 		}
 		else
 		{
@@ -181,12 +181,9 @@ bool CD2ImageDrawer::CheckBitmapSize(const SImageFrame& imageFrame)
 	return false;
 }
 /*複写枠作成*/
-bool CD2ImageDrawer::CreateBitmapForDrawing(const SImageFrame& imageFrame)
+bool CD2ImageDrawer::CreateBitmapForDrawing(unsigned long uiWidth, unsigned long uiHeight)
 {
 	ReleaseBitmap();
-
-	UINT uiWidth = imageFrame.uiWidth;
-	UINT uiHeight = imageFrame.uiHeight;
 
 	HRESULT hr = m_pD2d1DeviceContext->CreateBitmap(D2D1::SizeU(uiWidth, uiHeight),
 		D2D1::BitmapProperties(D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_IGNORE)),
