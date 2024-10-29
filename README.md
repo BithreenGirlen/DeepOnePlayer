@@ -1,15 +1,13 @@
 # DeepOnePlayer
-
-## はじめに
-画像や動画を表示しつつ音声を再生します。
-
+A certain player intended to be used with [DeepOne](https://github.com/BithreenGirlen/DeepOne).
 - Backend
-  - Media Foundation
-  - WIC
+  - Microsoft Media Foundation
+  - Windows Imaging Component (WIC)
   - Direct2D
+  - DirectWrite
 
-## 再生方法
-メニュー欄`Folder->Open`から次のような構造のフォルダを開くと再生を開始します。
+## How to play
+Select a folder such as the following from menu item `Folder->Open`.
 <pre>
 10345304
 ├ 101.jpg
@@ -31,33 +29,33 @@
 └ ...
 </pre>
 
-## マウス機能 
+## Mouse function
 
-| 入力 | 機能 |
+| Input | Function |
 ----|---- 
-マウスホイール| 拡大・縮小。
-左ボタンクリック| 次の静画・動画を表示。
-左ボタンドラッグ| 表示区域移動。ディスプレイ解像度以上に拡大した場合のみ動作。
-中ボタン|(静画) 原寸大表示。<br>(動画) 基準尺度表示。
-右ボタン + マウスホイール|音声送り・戻し。
-右ボタン + 中ボタン|窓枠消去・表示。消去時にはディスプレイ原点位置に移動。
-右ボタン + 左ボタンクリック|窓移動。窓枠消去時のみ動作。
+Mouse wheel | Scale up/down
+Left button click | Step on to the next image/video.
+Left button drag | Move view; valid only when scaled size is beyond display resolution.
+Middle button |Reset scale to default.
+Right button + mouse wheel | Play the next/previous audio file.
+Right button + middle button | Hide/show window's frame. Having hidden, the window goes to the origin of the primary display.
+Right button + left button | Move window; valid only when the window's frame is hidden.
 
-## キーボード機能
+## Keyboard function
 
-| 入力 | 機能 |
+| Input | Function |
 ----|---- 
-Esc| 終了。
-| Up | 次のフォルダを開く。 |
-| Down | 前のフォルダを開く。 |
-| C   | 文字色黒・白切り替え。 |
-| T   | 文章表示・非表示切り替え。 |
+Esc| Close the application.
+| Up | Open the next folder. |
+| Down | Open the previous folder. |
+| C | Switch text colour between black and white. |
+| T | Hide/show text. |
 
-## メニュー機能
-| 分類 | 項目 | 機能 |
+## Menu function
+| Entry | Item | Fucntion |
 ----|---- |---- 
-Folder| Open| 再生フォルダ選択。
-Audio| Loop| 音声ループ有効・無効切り替え。
--| Setting| 音声音量・再生速度設定画面表示。
-Video| Pause| 動画一時停止。
--| Setting| 動画再生速度設定画面表示。
+Folder| Open | Open folder-select-dialogue.
+Audio| Loop | Set/reset audio loop setting.
+-| Setting | Open a dialogue for audio volume and playback-rate setting.
+Video| Pause | Pause video.
+-| Setting | Open a dialogue for video playback-rate setting.
